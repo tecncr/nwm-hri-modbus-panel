@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  verify-tag-source:
+    name: Verify tag points to master
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Ensure tagged commit is reachable from master
+        run: |
+          git fetch origin master --depth=1
+          if ! git branch -r --contains "$GITHUB_SHA" | grep -q "origin/master"; then
+            echo "Tag $GITHUB_REF_NAME does not point to a commit on master"
+            exit 1
+          fi
+
+  build-and-release:
+    name: Build and release ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: verify-tag-source
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-x86_64
+            ext: ''
+          - goos: linux
+            goarch: arm64
+            suffix: linux-aarch64
+            ext: ''
+          - goos: windows
+            goarch: amd64
+            suffix: windows-x86_64
+            ext: .exe
+          - goos: windows
+            goarch: arm64
+            suffix: windows-aarch64
+            ext: .exe
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cmd/nwm-panel/web/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build frontend assets
+        working-directory: cmd/nwm-panel/web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build executable
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p build
+          go build -trimpath -buildvcs=false -ldflags="-s -w -buildid= -X 'main.buildVersion=${{ github.ref_name }}'" -o "build/nwm-panel-${{ matrix.suffix }}${{ matrix.ext }}" ./cmd/nwm-panel
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v3
+        with:
+          files: build/nwm-panel-${{ matrix.suffix }}${{ matrix.ext }}
+          tag_name: ${{ github.ref_name }}
