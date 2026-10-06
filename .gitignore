@@ -1,0 +1,4 @@
+build/
+cmd/nwm-panel/web/node_modules/
+cmd/nwm-panel/web/.vite/
+cmd/nwm-panel/web/*.tsbuildinfo
