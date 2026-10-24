@@ -1,0 +1,161 @@
+# nwm-panel configuration
+#
+# Every scalar setting can also be set through an environment variable named
+# NWM_PANEL_<SECTION>_<KEY> (e.g. NWM_PANEL_SERVER_LISTEN, NWM_PANEL_STORAGE_DRIVER)
+# or a command-line flag (see `nwm-panel serve --help`).
+# Precedence: flags > environment > this file > built-in defaults.
+#
+# The master API key is NEVER read from this file: set NWM_PANEL_API_KEY.
+
+server:
+  # host:port, or unix:/path/to/socket for a reverse proxy on the same host.
+  listen: 127.0.0.1:8080
+  # Path prefix when the reverse proxy forwards a sub-path WITHOUT stripping it
+  # (e.g. /nwm). Leave empty when served at the root or when the proxy strips it.
+  base_path: ""
+  # Proxies allowed to set the client IP header. Accepts IPs, CIDRs and the
+  # keywords loopback, private, linklocal, unix. Empty = ignore the header.
+  trusted_proxies: []
+  proxy_header: X-Forwarded-For
+  read_timeout: 30s
+  write_timeout: 2m
+  idle_timeout: 2m
+  # Maximum request body size in bytes.
+  body_limit: 1048576
+  # Origins allowed for cross-origin API calls. Empty = same-origin only.
+  cors_origins: []
+  # Serve the embedded web dashboard.
+  ui: true
+  access_log: true
+  rate_limit:
+    enabled: true
+    # Per client IP, for every /api/v1 endpoint.
+    requests_per_minute: 600
+    # Failed API key attempts per client IP per minute before blocking.
+    auth_failures_per_minute: 10
+
+log:
+  level: info   # debug, info, warn, error
+  format: text  # text, json
+
+modbus:
+  # Response timeout and retries (after timeouts/CRC errors); buses may override.
+  timeout: 1s
+  retries: 1
+  # Allow raw register writes (PUT/POST /devices/{id}/registers).
+  allow_raw_writes: true
+  # Allow broadcast writes (address 0) to every encoder on a bus.
+  allow_broadcast: true
+  # Live readings younger than this are served from cache.
+  live_cache_ttl: 2s
+
+storage:
+  driver: sqlite  # sqlite, timescaledb or none
+  # Delete measurements older than this (0 = keep forever).
+  retention: 0s
+  sqlite:
+    path: nwm-panel.db
+  timescaledb:
+    # Prefer NWM_PANEL_STORAGE_TIMESCALEDB_DSN to keep the password out of the file.
+    dsn: ""
+    # Hypertable partition (chunk) size: one week by default.
+    chunk_interval: 168h
+    # Compress chunks older than this (0 = disabled).
+    compression_after: 0s
+    max_open_conns: 10
+
+recorder:
+  enabled: true
+  # Aligned to the wall clock: 1m records at every :00 second, 15m at :00/:15/:30/:45.
+  interval: 1m
+  # Optional cron expression (seconds field optional); overrides interval.
+  cron: ""
+  # Upper bound for one recording pass over all devices.
+  timeout: 30s
+
+export:
+  enabled: true
+  directory: exports
+  # Every hour on the hour, write the measurements of the previous hour.
+  interval: 1h
+  cron: ""
+  window: 1h
+  # Devices to include (empty = all).
+  devices: []
+  columns: [time, device_id, device_name, slave, total_liters, forward_liters, reverse_liters,
+            total_m3, total_raw, forward_raw, reverse_raw, liters_per_unit, battery_status, failure]
+  delimiter: ","
+  header: true
+  # Time zone for timestamps and file names (IANA name or Local).
+  timezone: Local
+  # Go time layout for the time column.
+  time_format: "2006-01-02T15:04:05Z07:00"
+  # Tokens: {from} {to} {date} {device}
+  filename: "measurements_{from}_{to}.csv"
+  # One file per device instead of one combined file.
+  per_device: false
+  # Do not write files without rows.
+  skip_empty: false
+  # Delete export files older than this (0 = keep forever).
+  keep: 0s
+
+query:
+  default_page_size: 100
+  max_page_size: 1000
+  # Longest time range a single query may cover.
+  max_range: 8784h
+  max_export_rows: 500000
+  max_buckets: 5000
+  timeout: 30s
+
+# RS-485 lines (or serial gateways) with encoders on them.
+buses:
+  - id: rs485-1
+    name: Main RS-485 line
+    transport: serial          # serial, tcp or simulator
+    serial:
+      device: /dev/ttyUSB0
+      baud_rate: 9600          # encoder default: 9600 8N1
+      data_bits: 8
+      parity: N                # N, E, O
+      stop_bits: 1
+    # timeout: 1s              # override modbus.timeout
+    # retries: 1               # override modbus.retries
+    # frame_delay: 0s          # inter-frame silence (default: 3.5 characters)
+
+  # - id: gateway-1
+  #   transport: tcp           # transparent serial server forwarding raw RTU frames
+  #   tcp:
+  #     address: 192.168.1.50:4001
+  #     connect_timeout: 5s
+
+  # - id: demo
+  #   transport: simulator     # in-memory encoders for testing without hardware
+  #   simulator:
+  #     slaves: [1, 2, 3]
+  #     flow_lpm: 10
+
+# Encoders. Inventory changes made through the API are written back here.
+devices:
+  - id: building-a
+    name: Building A main meter
+    description: Basement, riser 1
+    bus: rs485-1
+    slave: 1
+    enabled: true              # poll this device at all
+    record: true               # include it in periodic recordings
+    timezone: America/Lima     # zone of the encoder's clock (default: server local)
+    grouped_reads: false       # read registers in small groups (for picky firmware)
+    meter:
+      # Liters per counter unit. 0 = use the encoder's output pulse equivalent.
+      liters_per_unit: 0
+      # Added to net and forward volumes (e.g. reading of a replaced meter).
+      offset_liters: 0
+      # Expected encoder pulse equivalents; can be pushed to the encoder and
+      # mismatches are flagged. Set both or neither.
+      base_liters_per_pulse: 10
+      output_liters_per_unit: 10
+      model: DN50
+      serial_number: ""
+    tags:
+      site: hq

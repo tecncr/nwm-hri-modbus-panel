@@ -1,0 +1,21 @@
+# Build output
+/bin/
+/dist/
+
+# Local runtime data
+*.db
+*.db-wal
+*.db-shm
+/exports/
+/nwm-panel.yaml
+/nwm-panel.yml
+
+# Dashboard (see also web/.gitignore)
+/web/node_modules/
+/web/dist/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
