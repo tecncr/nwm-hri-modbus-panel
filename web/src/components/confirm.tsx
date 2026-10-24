@@ -21,9 +21,9 @@ export function Confirm({ title, description, confirm = "Confirm", onConfirm, ch
       <WithTip tip={tip}>
         <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
       </WithTip>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
+      <AlertDialogContent className="data-[size=default]:sm:max-w-md">
+        <AlertDialogHeader className="min-w-0">
+          <AlertDialogTitle className="wrap-anywhere">{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

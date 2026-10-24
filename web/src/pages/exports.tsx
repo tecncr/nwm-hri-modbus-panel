@@ -59,7 +59,7 @@ export function ExportsPage() {
           <QueryState query={data}>
             {(d) =>
               d.files.length === 0 ? (
-                <p className="text-sm">No export files yet.</p>
+                <p className="text-sm text-muted-foreground">No export files yet.</p>
               ) : (
                 <Table>
                   <TableHeader>

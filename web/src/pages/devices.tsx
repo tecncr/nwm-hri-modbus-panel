@@ -69,7 +69,7 @@ export function DevicesPage() {
           <QueryState query={buses}>
             {(d) =>
               d.buses.length === 0 ? (
-                <p className="text-sm">No buses yet. Add one to connect encoders.</p>
+                <p className="text-sm text-muted-foreground">No buses yet. Add one to connect encoders.</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -170,7 +170,7 @@ export function DevicesPage() {
           <QueryState query={devices}>
             {(d) =>
               d.devices.length === 0 ? (
-                <p className="text-sm">No devices yet. Add one, or scan a bus to discover encoders.</p>
+                <p className="text-sm text-muted-foreground">No devices yet. Add one, or scan a bus to discover encoders.</p>
               ) : (
                 <Table>
                   <TableHeader>

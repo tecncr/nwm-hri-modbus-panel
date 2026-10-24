@@ -30,7 +30,7 @@ export function SwitchField({ id, label, hint, children }: { id: string; label: 
 export function FormSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <fieldset className="grid gap-4 border-t pt-4">
-      <legend className="pr-2 text-xs font-bold tracking-wide uppercase">{title}</legend>
+      <legend className="pr-2 text-sm font-medium">{title}</legend>
       {children}
     </fieldset>
   )

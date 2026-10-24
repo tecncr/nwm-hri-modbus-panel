@@ -52,7 +52,7 @@ export function LoginPage() {
               <Hint>Unchecked, the key is kept only until this tab is closed. Checked, it is stored in this browser's local storage until you sign out.</Hint>
             </div>
             {error && (
-              <p role="alert" className="border border-foreground p-2 text-sm font-medium">
+              <p role="alert" className="rounded-md border bg-muted p-2 text-sm">
                 {error}
               </p>
             )}

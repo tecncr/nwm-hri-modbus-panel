@@ -10,7 +10,7 @@ export function Hint({ children, className }: { children: ReactNode; className?:
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" className={cn("inline-flex size-4 shrink-0 items-center justify-center align-middle", className)} aria-label="More information">
+        <button type="button" className={cn("inline-flex size-4 shrink-0 text-muted-foreground hover:text-foreground items-center justify-center align-middle", className)} aria-label="More information">
           <InfoIcon className="size-3.5" />
         </button>
       </TooltipTrigger>

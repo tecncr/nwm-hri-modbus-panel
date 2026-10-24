@@ -29,11 +29,11 @@ deletions, broadcasts) ask for confirmation.
 
 ## Design
 
-The interface is deliberately minimal: strictly black and white (`#000` and
-`#FFF`), with a dark theme that inverts them, no gradients or shadows, a
-uniform 0.25 rem corner radius, and the Inter typeface (bundled, no external
-requests). Hover and selection states invert ink and surface; disabled
-controls use dashed outlines.
+The interface uses the stock shadcn/ui components with the neutral theme, fully
+grayscale (every shade of gray, no hue), in light and dark variants, and the
+Inter typeface (bundled, no external requests). The layout is responsive: the
+navigation collapses into a menu on small screens and tables scroll
+horizontally.
 
 Only chart marks use color. Series colors follow a fixed categorical order
 checked for color-vision deficiency against both the white and black
@@ -70,5 +70,5 @@ Source layout:
 | `src/lib/types.ts` | API types |
 | `src/pages/` | One file per page |
 | `src/components/` | Shared pieces: charts, forms, dialogs, tooltips |
-| `src/components/ui/` | shadcn/ui components, adapted to the monochrome theme |
+| `src/components/ui/` | stock shadcn/ui components |
 | `src/index.css` | Theme tokens |

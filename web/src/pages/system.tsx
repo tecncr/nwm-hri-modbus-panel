@@ -95,7 +95,7 @@ export function SystemPage() {
                       </Table>
                     </>
                   ) : (
-                    <p className="text-sm">No recording pass has run yet.</p>
+                    <p className="text-sm text-muted-foreground">No recording pass has run yet.</p>
                   )}
                 </CardContent>
               </Card>

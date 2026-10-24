@@ -22,7 +22,7 @@ on water meters — in a single, dependency-free Go binary.
   plus on-demand downloads.
 - **Safe API** — master API key, failed-auth lockout, rate limiting,
   validated and bounded queries, strict JSON, reverse-proxy aware.
-- **Dashboard** — React 19 + shadcn/ui, black-and-white, embedded in the
+- **Dashboard** — React 19 + shadcn/ui, grayscale and responsive, embedded in the
   binary, with a tooltip on every option.
 
 ## Quick start

@@ -6,10 +6,9 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Strictly monochromatic: every UI token is #fff or #000. Hierarchy comes
- * from size, weight and borders, never from grays. Only data marks in charts
- * use color (--chart-*), validated for color-vision deficiency against both
- * surfaces.
+ * Vanilla shadcn/ui neutral theme: every UI token is a pure gray (zero chroma).
+ * Only data marks in charts use color (--chart-*), validated for color-vision
+ * deficiency against both surfaces.
  */
 @theme inline {
   --font-heading: var(--font-sans);
@@ -41,50 +40,36 @@
   --color-chart-6: var(--chart-6);
   --color-chart-7: var(--chart-7);
   --color-chart-8: var(--chart-8);
-  /* One quarter-rem radius for every element. */
-  --radius-xs: 0.25rem;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.25rem;
-  --radius-lg: 0.25rem;
-  --radius-xl: 0.25rem;
-  --radius-2xl: 0.25rem;
-  --radius-3xl: 0.25rem;
-  --radius-4xl: 0.25rem;
-}
-
-/* Flat design: shadows would introduce grays. */
-@theme {
-  --shadow-2xs: 0 0 #0000;
-  --shadow-xs: 0 0 #0000;
-  --shadow-sm: 0 0 #0000;
-  --shadow: 0 0 #0000;
-  --shadow-md: 0 0 #0000;
-  --shadow-lg: 0 0 #0000;
-  --shadow-xl: 0 0 #0000;
-  --shadow-2xl: 0 0 #0000;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 :root {
   color-scheme: light;
-  --radius: 0.25rem;
-  --background: #fff;
-  --foreground: #000;
-  --card: #fff;
-  --card-foreground: #000;
-  --popover: #fff;
-  --popover-foreground: #000;
-  --primary: #000;
-  --primary-foreground: #fff;
-  --secondary: #fff;
-  --secondary-foreground: #000;
-  --muted: #fff;
-  --muted-foreground: #000;
-  --accent: #000;
-  --accent-foreground: #fff;
-  --destructive: #000;
-  --border: #000;
-  --input: #000;
-  --ring: #000;
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.3 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
   /* Categorical series, fixed order (validated on #fff). */
   --chart-1: #2a78d6;
   --chart-2: #eb6834;
@@ -98,24 +83,24 @@
 
 .dark {
   color-scheme: dark;
-  --background: #000;
-  --foreground: #fff;
-  --card: #000;
-  --card-foreground: #fff;
-  --popover: #000;
-  --popover-foreground: #fff;
-  --primary: #fff;
-  --primary-foreground: #000;
-  --secondary: #000;
-  --secondary-foreground: #fff;
-  --muted: #000;
-  --muted-foreground: #fff;
-  --accent: #fff;
-  --accent-foreground: #000;
-  --destructive: #fff;
-  --border: #fff;
-  --input: #fff;
-  --ring: #fff;
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.85 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
   /* Same hues, stepped for the dark surface (validated on #000). */
   --chart-1: #3987e5;
   --chart-2: #d95926;
@@ -142,19 +127,4 @@
   html {
     @apply font-sans;
   }
-}
-
-/* Focus rings and translucent tints would render as grays: use solid ink. */
-*:focus-visible {
-  --tw-ring-color: var(--ring) !important;
-}
-/* Placeholders cannot be gray, so they are set in italics instead. */
-input::placeholder,
-textarea::placeholder {
-  color: var(--foreground);
-  font-style: italic;
-}
-::selection {
-  background: var(--foreground);
-  color: var(--background);
 }

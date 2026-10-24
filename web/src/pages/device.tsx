@@ -230,7 +230,7 @@ export function DevicePage({ id }: { id: string }) {
 function Field({ label, hint, value }: { label: string; hint: string; value: ReactNode }) {
   return (
     <div>
-      <div className="flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         {label} <Hint>{hint}</Hint>
       </div>
       <div className="mt-1 font-mono">{value}</div>
