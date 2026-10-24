@@ -1,0 +1,64 @@
+# GoReleaser configuration for nwm-panel release builds.
+# Local dry run: goreleaser release --snapshot --clean
+version: 2
+
+project_name: nwm-panel
+
+before:
+  hooks:
+    # Build the dashboard into web/dist, which go:embed bundles into the binary.
+    - make web
+
+builds:
+  - id: nwm-panel
+    main: ./cmd/nwm-panel
+    binary: nwm-panel
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/tecncr/nwm-hri-modbus-panel/internal/version.Version={{ .Version }}
+      - -X github.com/tecncr/nwm-hri-modbus-panel/internal/version.Commit={{ .FullCommit }}
+      - -X github.com/tecncr/nwm-hri-modbus-panel/internal/version.Date={{ .Date }}
+      - -X github.com/tecncr/nwm-hri-modbus-panel/internal/version.Os={{ .Os }}
+      - -X github.com/tecncr/nwm-hri-modbus-panel/internal/version.Arch={{ .Arch }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: arm
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: nwm-panel
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}
+    files:
+      - README.md
+      - docs/*.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+
+release:
+  prerelease: auto

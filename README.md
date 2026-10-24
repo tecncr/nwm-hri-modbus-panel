@@ -78,3 +78,16 @@ Project layout:
 | `internal/cli`, `internal/version` | Command line and build metadata |
 | `web/` | Dashboard source; `web/dist` is embedded at build time |
 | `docs/` | Documentation |
+
+## Releases
+
+Pushing a `vX.Y.Z` tag that points to a commit on `master` runs the release
+workflow (`.github/workflows/release.yml`): it builds the dashboard, runs
+`go vet` and the tests, and publishes a GitHub release with
+[GoReleaser](https://goreleaser.com) (`.goreleaser.yaml`) — static binaries for
+Linux (amd64, arm64, armv7), macOS and Windows, plus checksums.
+
+```sh
+git tag -a v1.0.0 -m "v1.0.0" && git push origin v1.0.0
+goreleaser release --snapshot --clean   # local dry run into dist/
+```
