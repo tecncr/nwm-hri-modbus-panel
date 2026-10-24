@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { DownloadIcon, PlayIcon, Trash2Icon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -13,60 +14,62 @@ import { QueryState } from "@/components/query-state"
 import { Stat } from "@/components/stat"
 import { useAction } from "@/hooks/use-action"
 import { api, download, errorMessage } from "@/lib/api"
-import { fmtBytes, fmtDateTime, fmtGoDuration, fmtRelative } from "@/lib/format"
+import { fmtBytes, fmtDateTime, fmtGoDuration, fmtNumber, fmtRelative, parseSchedule } from "@/lib/format"
 import type { ExportFile, ExportResult, ExportStatus } from "@/lib/types"
 
 export function ExportsPage() {
+  const { t } = useTranslation()
   const data = useQuery({ queryKey: ["exports"], queryFn: () => api.get<{ status: ExportStatus; files: ExportFile[] }>("exports"), refetchInterval: 30_000 })
   const run = useAction(() => api.post<ExportResult>("exports/run"), {
-    success: (r) => `Exported ${r.rows} rows to ${r.files.length} file(s)`,
+    success: (r) => t("exports.exported", { rows: fmtNumber(r.rows), count: r.files.length }),
     invalidate: [["exports"]],
   })
-  const del = useAction((name: string) => api.del(`exports/files/${encodeURIComponent(name)}`), { success: "File deleted", invalidate: [["exports"]] })
+  const del = useAction((name: string) => api.del(`exports/files/${encodeURIComponent(name)}`), { success: t("exports.fileDeleted"), invalidate: [["exports"]] })
   const st = data.data?.status
   const last = st?.last_run
+  const schedule = st && parseSchedule(st.schedule)
 
   return (
     <>
       <PageHeader
-        title="Exports"
-        description="CSV files generated periodically from the recorded measurements."
+        title={t("exports.title")}
+        description={t("exports.description")}
         actions={
-          <WithTip tip="Generate the export now for the configured window ending at the current time. Scheduled exports are unaffected.">
+          <WithTip tip={t("exports.runTip")}>
             <Button onClick={() => run.mutate(undefined)} disabled={run.isPending}>
-              {run.isPending ? <Spinner /> : <PlayIcon />} Export now
+              {run.isPending ? <Spinner /> : <PlayIcon />} {t("exports.run")}
             </Button>
           </WithTip>
         }
       />
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Schedule" value={st ? (st.enabled ? st.schedule.replace(" (aligned)", "") : "Off") : "—"} sub={st?.enabled ? "aligned to the clock" : undefined} hint="When periodic exports run (export.interval or export.cron). Interval schedules are aligned to the wall clock, e.g. 1h runs on the hour." />
-        <Stat label="Window" value={fmtGoDuration(st?.window)} hint="Time span covered by each file, ending at the scheduled time (export.window)." />
-        <Stat label="Next run" value={st?.next_run ? fmtRelative(st.next_run) : "—"} sub={st?.next_run ? fmtDateTime(st.next_run) : undefined} hint="When the next scheduled export runs." />
+        <Stat label={t("exports.schedule")} value={st ? (st.enabled ? schedule!.text : t("common.off")) : "—"} sub={st?.enabled && schedule!.aligned ? t("exports.aligned") : undefined} hint={t("exports.scheduleHint")} />
+        <Stat label={t("exports.window")} value={fmtGoDuration(st?.window)} hint={t("exports.windowHint")} />
+        <Stat label={t("exports.nextRun")} value={st?.next_run ? fmtRelative(st.next_run) : "—"} sub={st?.next_run ? fmtDateTime(st.next_run) : undefined} hint={t("exports.nextRunHint")} />
         <Stat
-          label="Last run"
-          value={last ? (last.error ? "Failed" : `${last.rows} rows`) : "—"}
+          label={t("exports.lastRun")}
+          value={last ? (last.error ? t("exports.failed") : t("exports.rows", { count: last.rows, formatted: fmtNumber(last.rows) })) : "—"}
           sub={last ? (last.error ?? fmtRelative(last.tick)) : undefined}
-          hint="Outcome of the most recent export, scheduled or manual."
+          hint={t("exports.lastRunHint")}
         />
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Files</CardTitle>
-          <CardDescription>{st ? `In ${st.directory} on the server.` : ""}</CardDescription>
+          <CardTitle>{t("exports.files")}</CardTitle>
+          <CardDescription>{st ? t("exports.directory", { directory: st.directory }) : ""}</CardDescription>
         </CardHeader>
         <CardContent>
           <QueryState query={data}>
             {(d) =>
               d.files.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No export files yet.</p>
+                <p className="text-sm text-muted-foreground">{t("exports.noFiles")}</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>File</TableHead>
-                      <TableHead className="text-right">Size</TableHead>
-                      <TableHead>Created</TableHead>
+                      <TableHead>{t("exports.file")}</TableHead>
+                      <TableHead className="text-right">{t("exports.size")}</TableHead>
+                      <TableHead>{t("exports.created")}</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -77,13 +80,13 @@ export function ExportsPage() {
                         <TableCell className="text-right tabular-nums">{fmtBytes(f.size)}</TableCell>
                         <TableCell className="whitespace-nowrap">{fmtDateTime(f.modified)}</TableCell>
                         <TableCell className="text-right whitespace-nowrap">
-                          <WithTip tip="Download this file.">
-                            <Button variant="ghost" size="icon-sm" aria-label="Download" onClick={() => download(`exports/files/${encodeURIComponent(f.name)}`, undefined, f.name).catch((e) => toast.error(errorMessage(e)))}>
+                          <WithTip tip={t("exports.downloadTip")}>
+                            <Button variant="ghost" size="icon-sm" aria-label={t("common.download")} onClick={() => download(`exports/files/${encodeURIComponent(f.name)}`, undefined, f.name).catch((e) => toast.error(errorMessage(e)))}>
                               <DownloadIcon />
                             </Button>
                           </WithTip>
-                          <Confirm title={`Delete ${f.name}?`} description="The file is removed from the export directory. The measurements stay in the database." confirm="Delete" onConfirm={() => del.mutate(f.name)} tip="Delete this file from the server.">
-                            <Button variant="ghost" size="icon-sm" aria-label="Delete">
+                          <Confirm title={t("exports.deleteTitle", { name: f.name })} description={t("exports.deleteDescription")} confirm={t("common.delete")} onConfirm={() => del.mutate(f.name)} tip={t("exports.deleteTip")}>
+                            <Button variant="ghost" size="icon-sm" aria-label={t("common.delete")}>
                               <Trash2Icon />
                             </Button>
                           </Confirm>

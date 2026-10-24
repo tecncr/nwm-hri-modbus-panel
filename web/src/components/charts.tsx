@@ -1,19 +1,20 @@
+import { useTranslation } from "react-i18next"
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
-import { fmtNumber } from "@/lib/format"
+import { locale } from "@/i18n"
+import { fmtDateTime, fmtNumber } from "@/lib/format"
 import { SERIES_COLORS } from "@/lib/series"
-
 
 function tickTime(bucketHours: number) {
   return (v: string) => {
     const d = new Date(v)
     return bucketHours >= 24
-      ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+      ? d.toLocaleDateString(locale(), { month: "short", day: "numeric" })
       : bucketHours >= 6
-        ? d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit" })
-        : d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+        ? d.toLocaleString(locale(), { month: "short", day: "numeric", hour: "2-digit" })
+        : d.toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" })
   }
 }
 
@@ -25,20 +26,23 @@ function bucketHours(bucket: string) {
 
 const fmtLiters = (v: number) => (Math.abs(v) >= 10000 ? `${fmtNumber(v / 1000, 1)} m³` : `${fmtNumber(v, 0)} L`)
 
-export function NoData({ children = "No recorded measurements in this range." }: { children?: string }) {
+export function NoData({ children }: { children?: string }) {
+  const { t } = useTranslation()
   return (
     <Empty className="h-64 border">
       <EmptyHeader>
-        <EmptyTitle>No data</EmptyTitle>
-        <EmptyDescription>{children}</EmptyDescription>
+        <EmptyTitle>{t("charts.noData")}</EmptyTitle>
+        <EmptyDescription>{children ?? t("charts.noDataInRange")}</EmptyDescription>
       </EmptyHeader>
     </Empty>
   )
 }
 
 /** Consumption per time bucket for one meter (single series: no legend). */
-export function ConsumptionBars({ data, bucket, label = "Consumption" }: { data: { start: string; value: number }[]; bucket: string; label?: string }) {
+export function ConsumptionBars({ data, bucket, label: labelProp }: { data: { start: string; value: number }[]; bucket: string; label?: string }) {
+  const { t } = useTranslation()
   if (data.length === 0) return <NoData />
+  const label = labelProp ?? t("charts.consumption")
   const config = { value: { label, color: SERIES_COLORS[0] } } satisfies ChartConfig
   return (
     <ChartContainer config={config} className="aspect-auto h-72 w-full">
@@ -50,7 +54,7 @@ export function ConsumptionBars({ data, bucket, label = "Consumption" }: { data:
           cursor={{ fill: "var(--foreground)", fillOpacity: 0.06 }}
           content={
             <ChartTooltipContent
-              labelFormatter={(_, p) => new Date(p?.[0]?.payload?.start).toLocaleString()}
+              labelFormatter={(_, p) => fmtDateTime(p?.[0]?.payload?.start)}
               formatter={(v) => (
                 <span className="flex w-full justify-between gap-4">
                   <span>{label}</span>
@@ -80,7 +84,7 @@ export function MeterLines({ rows, series, bucket, unit = "L" }: { rows: Record<
           content={
             <ChartTooltipContent
               indicator="line"
-              labelFormatter={(_, p) => new Date(p?.[0]?.payload?.start).toLocaleString()}
+              labelFormatter={(_, p) => fmtDateTime(p?.[0]?.payload?.start)}
               formatter={(v, name) => (
                 <span className="flex w-full items-center justify-between gap-4">
                   <span className="flex items-center gap-1.5">
@@ -104,8 +108,9 @@ export function MeterLines({ rows, series, bucket, unit = "L" }: { rows: Record<
 
 /** Consumption by meter: one measure across categories, so a single colour. */
 export function MeterBars({ data }: { data: { id: string; label: string; value: number }[] }) {
+  const { t } = useTranslation()
   if (data.length === 0) return <NoData />
-  const config = { value: { label: "Net consumption", color: SERIES_COLORS[0] } } satisfies ChartConfig
+  const config = { value: { label: t("charts.netConsumption"), color: SERIES_COLORS[0] } } satisfies ChartConfig
   return (
     <ChartContainer config={config} className="aspect-auto w-full" style={{ height: Math.max(160, data.length * 36 + 40) }}>
       <BarChart data={data} layout="vertical" barCategoryGap={2} margin={{ left: 4, right: 48 }}>

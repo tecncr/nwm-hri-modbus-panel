@@ -88,6 +88,7 @@ config file (or through the API).
 | `body_limit` | `1048576` | | Maximum request body size in bytes. |
 | `cors_origins` | `[]` | | Origins allowed to call the API cross-origin. Empty = same-origin only (the embedded dashboard needs nothing). |
 | `ui` | `true` | `--ui` | Serve the embedded dashboard. Set `false` for an API-only server. |
+| `ui_language` | `en` | `--ui-language` | Dashboard language (`en` or `es`) for browsers whose preferred languages are all unsupported. See [dashboard languages](dashboard.md#languages). |
 | `access_log` | `true` | | Log one line per HTTP request. |
 | `rate_limit.enabled` | `true` | | Enable per-IP rate limiting of `/api/v1`. |
 | `rate_limit.requests_per_minute` | `600` | | Requests per client IP per minute. |

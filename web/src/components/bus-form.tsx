@@ -1,5 +1,6 @@
 import { WithTip } from "@/components/hint"
 import { useState, type FormEvent, type ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -25,12 +26,13 @@ const EMPTY: BusConfig = {
 
 /** Create or edit a bus. */
 export function BusDialog({ bus, children, tip }: { tip?: string; bus?: BusConfig; children: ReactNode }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState<BusConfig>(bus ?? EMPTY)
   const [slaves, setSlaves] = useState((bus ?? EMPTY).simulator.slaves?.join(", ") ?? "")
   const editing = !!bus
   const save = useAction((b: BusConfig) => (editing ? api.put(`buses/${encodeURIComponent(b.id)}`, b) : api.post("buses", b)), {
-    success: editing ? "Bus updated" : "Bus created",
+    success: editing ? t("busForm.updated") : t("busForm.created"),
     invalidate: [["buses"], ["devices"], ["system"]],
     onSuccess: () => setOpen(false),
   })
@@ -58,56 +60,56 @@ export function BusDialog({ bus, children, tip }: { tip?: string; bus?: BusConfi
       </WithTip>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editing ? `Edit bus ${bus.id}` : "Add bus"}</DialogTitle>
-          <DialogDescription>A bus is one RS-485 line (or serial gateway) shared by one or more encoders. Saving reconnects it.</DialogDescription>
+          <DialogTitle>{editing ? t("busForm.titleEdit", { id: bus.id }) : t("busForm.titleAdd")}</DialogTitle>
+          <DialogDescription>{t("busForm.description")}</DialogDescription>
         </DialogHeader>
         <form id="bus-form" onSubmit={submit} className="grid gap-4">
           <div className="grid grid-cols-2 gap-4">
-            <FormField id="bus-id" label="ID" hint="Unique identifier used in URLs and in device definitions. Lowercase letters, digits, - and _. Cannot be changed later.">
+            <FormField id="bus-id" label={t("busForm.id")} hint={t("busForm.idHint")}>
               <Input id="bus-id" value={form.id} disabled={editing} onChange={(e) => set("id", e.target.value)} required pattern="[a-z0-9][a-z0-9_\-]{0,63}" />
             </FormField>
-            <FormField id="bus-name" label="Name" hint="Optional human-readable name.">
+            <FormField id="bus-name" label={t("busForm.name")} hint={t("busForm.nameHint")}>
               <Input id="bus-name" value={form.name} onChange={(e) => set("name", e.target.value)} />
             </FormField>
           </div>
-          <FormField id="bus-transport" label="Transport" hint="Serial: a local RS-485 adapter. TCP: a transparent serial-to-Ethernet gateway that forwards raw RTU frames. Simulator: in-memory encoders for testing without hardware.">
+          <FormField id="bus-transport" label={t("busForm.transport")} hint={t("busForm.transportHint")}>
             <Select value={form.transport} onValueChange={(v) => set("transport", v as BusConfig["transport"])}>
               <SelectTrigger id="bus-transport" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="serial">Serial (RS-485)</SelectItem>
-                <SelectItem value="tcp">RTU over TCP gateway</SelectItem>
-                <SelectItem value="simulator">Simulator</SelectItem>
+                <SelectItem value="serial">{t("busForm.transportSerial")}</SelectItem>
+                <SelectItem value="tcp">{t("busForm.transportTcp")}</SelectItem>
+                <SelectItem value="simulator">{t("busForm.transportSimulator")}</SelectItem>
               </SelectContent>
             </Select>
           </FormField>
 
           {form.transport === "serial" && (
-            <FormSection title="Serial line">
-              <FormField id="bus-dev" label="Device" hint="Serial port path, e.g. /dev/ttyUSB0 or /dev/serial/by-id/… (stable across reboots). The server user needs read/write access (dialout group).">
+            <FormSection title={t("busForm.serialLine")}>
+              <FormField id="bus-dev" label={t("busForm.device")} hint={t("busForm.deviceHint")}>
                 <Input id="bus-dev" value={form.serial.device} onChange={(e) => set("serial", { ...form.serial, device: e.target.value })} required />
               </FormField>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <FormField id="bus-baud" label="Baud" hint="Line speed. NWM-HRI encoders use 9600 baud by default.">
+                <FormField id="bus-baud" label={t("busForm.baud")} hint={t("busForm.baudHint")}>
                   <Input id="bus-baud" type="number" min={300} max={921600} value={form.serial.baud_rate} onChange={(e) => set("serial", { ...form.serial, baud_rate: Number(e.target.value) })} />
                 </FormField>
-                <FormField id="bus-bits" label="Data bits" hint="Bits per character. Encoders use 8.">
+                <FormField id="bus-bits" label={t("busForm.dataBits")} hint={t("busForm.dataBitsHint")}>
                   <Input id="bus-bits" type="number" min={5} max={8} value={form.serial.data_bits} onChange={(e) => set("serial", { ...form.serial, data_bits: Number(e.target.value) })} />
                 </FormField>
-                <FormField id="bus-parity" label="Parity" hint="Parity bit. Encoders use none (N).">
+                <FormField id="bus-parity" label={t("busForm.parity")} hint={t("busForm.parityHint")}>
                   <Select value={form.serial.parity} onValueChange={(v) => set("serial", { ...form.serial, parity: v })}>
                     <SelectTrigger id="bus-parity" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="N">None</SelectItem>
-                      <SelectItem value="E">Even</SelectItem>
-                      <SelectItem value="O">Odd</SelectItem>
+                      <SelectItem value="N">{t("busForm.parityNone")}</SelectItem>
+                      <SelectItem value="E">{t("busForm.parityEven")}</SelectItem>
+                      <SelectItem value="O">{t("busForm.parityOdd")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormField>
-                <FormField id="bus-stop" label="Stop bits" hint="Stop bits per character. Encoders use 1.">
+                <FormField id="bus-stop" label={t("busForm.stopBits")} hint={t("busForm.stopBitsHint")}>
                   <Select value={String(form.serial.stop_bits)} onValueChange={(v) => set("serial", { ...form.serial, stop_bits: Number(v) })}>
                     <SelectTrigger id="bus-stop" className="w-full">
                       <SelectValue />
@@ -122,39 +124,39 @@ export function BusDialog({ bus, children, tip }: { tip?: string; bus?: BusConfi
             </FormSection>
           )}
           {form.transport === "tcp" && (
-            <FormSection title="Gateway">
+            <FormSection title={t("busForm.gateway")}>
               <div className="grid grid-cols-3 gap-4">
-                <FormField id="bus-addr" label="Address" hint="host:port of the serial server. It must forward raw RTU frames (transparent mode), not translate to Modbus TCP." className="col-span-2">
+                <FormField id="bus-addr" label={t("busForm.address")} hint={t("busForm.addressHint")} className="col-span-2">
                   <Input id="bus-addr" placeholder="192.168.1.50:4001" value={form.tcp.address} onChange={(e) => set("tcp", { ...form.tcp, address: e.target.value })} required />
                 </FormField>
-                <FormField id="bus-ct" label="Connect timeout" hint="How long to wait for the TCP connection, as a duration (e.g. 5s).">
+                <FormField id="bus-ct" label={t("busForm.connectTimeout")} hint={t("busForm.connectTimeoutHint")}>
                   <Input id="bus-ct" value={form.tcp.connect_timeout} onChange={(e) => set("tcp", { ...form.tcp, connect_timeout: e.target.value })} />
                 </FormField>
               </div>
             </FormSection>
           )}
           {form.transport === "simulator" && (
-            <FormSection title="Simulator">
+            <FormSection title={t("busForm.simulator")}>
               <div className="grid grid-cols-3 gap-4">
-                <FormField id="bus-slaves" label="Slave addresses" hint="Comma-separated addresses (1-247) of the simulated encoders." className="col-span-2">
+                <FormField id="bus-slaves" label={t("busForm.slaves")} hint={t("busForm.slavesHint")} className="col-span-2">
                   <Input id="bus-slaves" value={slaves} onChange={(e) => setSlaves(e.target.value)} />
                 </FormField>
-                <FormField id="bus-flow" label="Flow (L/min)" hint="Mean simulated flow of each encoder; actual flow varies with a daily pattern.">
+                <FormField id="bus-flow" label={t("busForm.flow")} hint={t("busForm.flowHint")}>
                   <Input id="bus-flow" type="number" min={0} step="any" value={form.simulator.flow_lpm} onChange={(e) => set("simulator", { ...form.simulator, flow_lpm: Number(e.target.value) })} />
                 </FormField>
               </div>
             </FormSection>
           )}
 
-          <FormSection title="Timing">
+          <FormSection title={t("busForm.timing")}>
             <div className="grid grid-cols-3 gap-4">
-              <FormField id="bus-timeout" label="Timeout" hint="Response timeout for this bus as a duration (e.g. 500ms). 0s uses the global modbus.timeout.">
+              <FormField id="bus-timeout" label={t("busForm.timeout")} hint={t("busForm.timeoutHint")}>
                 <Input id="bus-timeout" value={form.timeout} onChange={(e) => set("timeout", e.target.value)} />
               </FormField>
-              <FormField id="bus-retries" label="Retries" hint="Retries after a timeout or CRC error. Leave empty to use the global modbus.retries.">
+              <FormField id="bus-retries" label={t("busForm.retries")} hint={t("busForm.retriesHint")}>
                 <Input id="bus-retries" type="number" min={0} max={10} value={form.retries ?? ""} onChange={(e) => set("retries", e.target.value === "" ? null : Number(e.target.value))} />
               </FormField>
-              <FormField id="bus-delay" label="Frame delay" hint="Silent interval enforced between frames. 0s uses the Modbus RTU standard of 3.5 character times for the baud rate (about 4 ms at 9600).">
+              <FormField id="bus-delay" label={t("busForm.frameDelay")} hint={t("busForm.frameDelayHint")}>
                 <Input id="bus-delay" value={form.frame_delay} onChange={(e) => set("frame_delay", e.target.value)} />
               </FormField>
             </div>
@@ -162,7 +164,7 @@ export function BusDialog({ bus, children, tip }: { tip?: string; bus?: BusConfi
         </form>
         <DialogFooter>
           <Button type="submit" form="bus-form" disabled={save.isPending}>
-            {save.isPending && <Spinner />} {editing ? "Save" : "Create"}
+            {save.isPending && <Spinner />} {editing ? t("common.save") : t("common.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

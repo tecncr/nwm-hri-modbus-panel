@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes"
 
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import "@/i18n"
 import { ApiError } from "@/lib/api"
 import App from "./App"
 import "./index.css"

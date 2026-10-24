@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"mime"
 	"path"
+	"regexp"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -11,16 +12,30 @@ import (
 	"github.com/tecncr/nwm-hri-modbus-panel/web"
 )
 
+var (
+	htmlLangRe    = regexp.MustCompile(`<html lang="[^"]*"`)
+	defaultLangRe = regexp.MustCompile(`(<meta name="nwm-panel-default-language" content=")[^"]*(")`)
+)
+
+// withLanguage sets the dashboard's fallback language (used when the browser
+// prefers none of the translated ones) in index.html. lang is validated by
+// the config, so it needs no escaping.
+func withLanguage(index []byte, lang string) []byte {
+	index = htmlLangRe.ReplaceAllLiteral(index, []byte(`<html lang="`+lang+`"`))
+	return defaultLangRe.ReplaceAll(index, []byte("${1}"+lang+"${2}"))
+}
+
 // mountUI serves the embedded dashboard under basePath. Asset URLs in the
 // bundle are relative, so the UI works behind any path prefix as long as it
 // is reached with a trailing slash.
-func (s *Server) mountUI(app *fiber.App, basePath string) {
+func (s *Server) mountUI(app *fiber.App, basePath, lang string) {
 	dist := web.Dist()
 	index, err := fs.ReadFile(dist, "index.html")
 	if err != nil {
 		s.Log.Warn("dashboard bundle missing; UI disabled", "err", err)
 		return
 	}
+	index = withLanguage(index, lang)
 	serveIndex := func(c fiber.Ctx) error {
 		c.Set(fiber.HeaderCacheControl, "no-cache")
 		c.Set(fiber.HeaderContentType, fiber.MIMETextHTMLCharsetUTF8)

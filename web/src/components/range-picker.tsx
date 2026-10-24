@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -13,26 +14,19 @@ export interface Range {
 }
 
 const PRESETS = {
-  "1h": { ms: 3600e3, bucket: "5m", label: "1H", tip: "Last hour, in 5-minute buckets." },
-  "24h": { ms: 86400e3, bucket: "1h", label: "24H", tip: "Last 24 hours, in hourly buckets." },
-  "7d": { ms: 7 * 86400e3, bucket: "6h", label: "7D", tip: "Last 7 days, in 6-hour buckets." },
-  "30d": { ms: 30 * 86400e3, bucket: "24h", label: "30D", tip: "Last 30 days, in daily buckets (local midnight)." },
+  "1h": { ms: 3600e3, bucket: "5m" },
+  "24h": { ms: 86400e3, bucket: "1h" },
+  "7d": { ms: 7 * 86400e3, bucket: "6h" },
+  "30d": { ms: 30 * 86400e3, bucket: "24h" },
 } as const
 
 type Preset = keyof typeof PRESETS | "custom"
 
-const BUCKETS = [
-  ["1m", "1 minute"],
-  ["5m", "5 minutes"],
-  ["15m", "15 minutes"],
-  ["1h", "1 hour"],
-  ["6h", "6 hours"],
-  ["24h", "1 day"],
-  ["168h", "1 week"],
-]
+const BUCKETS = ["1m", "5m", "15m", "1h", "6h", "24h", "168h"] as const
 
 /** Time range selector with presets and an optional custom range. */
 export function useRange(initial: keyof typeof PRESETS = "24h") {
+  const { t } = useTranslation()
   const [preset, setPreset] = useState<Preset>(initial)
   const [custom, setCustom] = useState(() => ({
     from: toLocalInput(new Date(Date.now() - 86400e3)),
@@ -64,35 +58,35 @@ export function useRange(initial: keyof typeof PRESETS = "24h") {
           }
         }}
       >
-        {Object.entries(PRESETS).map(([k, p]) => (
-          <WithTip key={k} tip={p.tip}>
-            <ToggleGroupItem value={k} aria-label={p.tip}>
-              {p.label}
+        {(Object.keys(PRESETS) as (keyof typeof PRESETS)[]).map((k) => (
+          <WithTip key={k} tip={t(`range.presets.${k}.tip`)}>
+            <ToggleGroupItem value={k} aria-label={t(`range.presets.${k}.tip`)}>
+              {t(`range.presets.${k}.label`)}
             </ToggleGroupItem>
           </WithTip>
         ))}
-        <WithTip tip="Choose start, end and bucket size yourself.">
-          <ToggleGroupItem value="custom">Custom</ToggleGroupItem>
+        <WithTip tip={t("range.customTip")}>
+          <ToggleGroupItem value="custom">{t("range.custom")}</ToggleGroupItem>
         </WithTip>
       </ToggleGroup>
       {preset === "custom" && (
         <div className="flex flex-wrap items-center gap-2">
-          <Input type="datetime-local" className="h-7 w-auto" value={custom.from} max={custom.to} onChange={(e) => setCustom({ ...custom, from: e.target.value })} aria-label="From" />
-          <span className="text-sm">to</span>
-          <Input type="datetime-local" className="h-7 w-auto" value={custom.to} min={custom.from} onChange={(e) => setCustom({ ...custom, to: e.target.value })} aria-label="To" />
+          <Input type="datetime-local" className="h-7 w-auto" value={custom.from} max={custom.to} onChange={(e) => setCustom({ ...custom, from: e.target.value })} aria-label={t("range.from")} />
+          <span className="text-sm">{t("range.to")}</span>
+          <Input type="datetime-local" className="h-7 w-auto" value={custom.to} min={custom.from} onChange={(e) => setCustom({ ...custom, to: e.target.value })} aria-label={t("range.toLabel")} />
           <Select value={custom.bucket} onValueChange={(bucket) => setCustom({ ...custom, bucket })}>
-            <SelectTrigger size="sm" className="w-32" aria-label="Bucket">
+            <SelectTrigger size="sm" className="w-32" aria-label={t("range.bucket")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {BUCKETS.map(([v, l]) => (
+              {BUCKETS.map((v) => (
                 <SelectItem key={v} value={v}>
-                  {l}
+                  {t(`range.buckets.${v}`)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Hint>The bucket is the interval each bar or point summarises. The server rejects ranges that would produce too many buckets (query.max_buckets).</Hint>
+          <Hint>{t("range.bucketHint")}</Hint>
         </div>
       )}
     </div>

@@ -194,3 +194,11 @@ func TestRawWritesDisabled(t *testing.T) {
 		t.Fatalf("broadcast: %d", r.StatusCode)
 	}
 }
+
+func TestWithLanguage(t *testing.T) {
+	in := []byte(`<html lang="en"><head><meta name="nwm-panel-default-language" content="en" /></head></html>`)
+	want := `<html lang="es"><head><meta name="nwm-panel-default-language" content="es" /></head></html>`
+	if got := string(withLanguage(in, "es")); got != want {
+		t.Fatalf("got %s", got)
+	}
+}

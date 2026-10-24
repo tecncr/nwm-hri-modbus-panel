@@ -29,6 +29,7 @@ var flagBindings = map[string]string{
 	"base-path":         "server.base_path",
 	"trusted-proxies":   "server.trusted_proxies",
 	"ui":                "server.ui",
+	"ui-language":       "server.ui_language",
 	"log-level":         "log.level",
 	"log-format":        "log.format",
 	"storage-driver":    "storage.driver",
@@ -66,6 +67,7 @@ func newServeCmd(opts *options) *cobra.Command {
 	f.String("base-path", "", "URL path prefix when served under a sub-path by a reverse proxy, e.g. /nwm")
 	f.StringSlice("trusted-proxies", nil, "reverse proxy IPs/CIDRs (or loopback, private) allowed to set client IP headers")
 	f.Bool("ui", true, "serve the embedded web dashboard")
+	f.String("ui-language", "", "dashboard language when the browser prefers none of the supported ones: "+strings.Join(config.UILanguages, ", "))
 	f.String("log-level", "", "log level: debug, info, warn, error")
 	f.String("log-format", "", "log format: text or json")
 	f.String("storage-driver", "", "measurement database: sqlite, timescaledb or none")

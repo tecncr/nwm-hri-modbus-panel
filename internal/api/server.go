@@ -114,7 +114,7 @@ func New(d Deps) *Server {
 	})
 
 	if sc.UI {
-		s.mountUI(app, sc.BasePath)
+		s.mountUI(app, sc.BasePath, sc.UILanguage)
 	}
 	return s
 }

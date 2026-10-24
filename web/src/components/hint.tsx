@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { InfoIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -7,10 +8,11 @@ import { cn } from "@/lib/utils"
 
 /** An info icon that explains what an option does on hover or focus. */
 export function Hint({ children, className }: { children: ReactNode; className?: string }) {
+  const { t } = useTranslation()
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" className={cn("inline-flex size-4 shrink-0 text-muted-foreground hover:text-foreground items-center justify-center align-middle", className)} aria-label="More information">
+        <button type="button" className={cn("inline-flex size-4 shrink-0 text-muted-foreground hover:text-foreground items-center justify-center align-middle", className)} aria-label={t("common.moreInfo")}>
           <InfoIcon className="size-3.5" />
         </button>
       </TooltipTrigger>

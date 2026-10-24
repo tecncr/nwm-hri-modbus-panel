@@ -28,6 +28,7 @@ var Defaults = map[string]any{
 	"server.body_limit":                          1 << 20,
 	"server.cors_origins":                        []string{},
 	"server.ui":                                  true,
+	"server.ui_language":                         "en",
 	"server.access_log":                          true,
 	"server.rate_limit.enabled":                  true,
 	"server.rate_limit.requests_per_minute":      600,
@@ -158,6 +159,7 @@ func Load(v *viper.Viper, path string) (*Config, string, error) {
 // Normalize fills derived defaults for buses and devices.
 func (c *Config) Normalize() {
 	c.Server.BasePath = NormalizeBasePath(c.Server.BasePath)
+	c.Server.UILanguage = strings.ToLower(strings.TrimSpace(c.Server.UILanguage))
 	for i := range c.Buses {
 		c.Buses[i].Normalize()
 	}
@@ -221,6 +223,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Server.BodyLimit <= 0 {
 		add("server.body_limit must be positive")
+	}
+	if !slices.Contains(UILanguages, c.Server.UILanguage) {
+		add("server.ui_language must be one of %s", strings.Join(UILanguages, ", "))
 	}
 	switch strings.ToLower(c.Log.Level) {
 	case "debug", "info", "warn", "error":

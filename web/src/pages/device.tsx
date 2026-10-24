@@ -1,6 +1,8 @@
 import { useState, type FormEvent, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { GaugeIcon, RefreshCwIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
+import type { TFunction } from "i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -21,26 +23,35 @@ import { useAction } from "@/hooks/use-action"
 import { href } from "@/hooks/use-route"
 import { api } from "@/lib/api"
 import { fmtDateTime, fmtNumber, toLocalInput } from "@/lib/format"
-import type { DeviceView, RegisterMap, RegisterValue, Snapshot, SnapshotResponse, SystemInfo } from "@/lib/types"
+import type { DeviceView, RegisterDef, RegisterMap, RegisterValue, Snapshot, SnapshotResponse, SystemInfo } from "@/lib/types"
+import i18n from "@/i18n"
+import type en from "@/i18n/en"
 
 const hex = (n: number, w = 4) => "0x" + n.toString(16).toUpperCase().padStart(w, "0")
 
-function decoded(key: string, s: Snapshot): string {
+/** Title and description of a register in the current language (the server's English text for unknown keys). */
+function registerText(t: TFunction, r: RegisterDef) {
+  if (!i18n.exists(`registers.${r.key}`)) return r
+  const key = r.key as keyof typeof en.registers
+  return { title: t(`registers.${key}.title`), description: t(`registers.${key}.description`) }
+}
+
+function decoded(t: TFunction, key: string, s: Snapshot): string {
   switch (key) {
     case "slave_address":
       return String(s.slave_address)
     case "total_flow":
-      return `${fmtNumber(s.counters.total)} units`
+      return t("device.units", { value: fmtNumber(s.counters.total) })
     case "forward_flow":
-      return `${fmtNumber(s.counters.forward)} units`
+      return t("device.units", { value: fmtNumber(s.counters.forward) })
     case "reverse_flow":
-      return `${fmtNumber(s.counters.reverse)} units`
+      return t("device.units", { value: fmtNumber(s.counters.reverse) })
     case "clock_year_month":
       return `${s.clock.year}-${String(s.clock.month).padStart(2, "0")}`
     case "clock_day_hour":
-      return `day ${s.clock.day}, ${s.clock.hour} h`
+      return t("device.clockDayHour", { day: s.clock.day, hour: s.clock.hour })
     case "clock_minute_second":
-      return `${s.clock.minute} min ${s.clock.second} s`
+      return t("device.clockMinuteSecond", { minute: s.clock.minute, second: s.clock.second })
     case "device_type":
       return String(s.device_type)
     case "firmware_year":
@@ -52,15 +63,15 @@ function decoded(key: string, s: Snapshot): string {
     case "battery_status":
       return String(s.battery_status)
     case "failure":
-      return s.failure === 0 ? "0 (none)" : String(s.failure)
+      return s.failure === 0 ? t("device.failureNone") : String(s.failure)
     case "base_pulse_equivalent":
-      return `${s.base_pulse_liters} L/pulse`
+      return t("device.litersPerPulse", { value: s.base_pulse_liters })
     case "output_pulse_equivalent":
-      return `${s.output_pulse_liters} L/unit`
+      return t("device.litersPerUnit", { value: s.output_pulse_liters })
     case "forward_base_reading":
-      return `${fmtNumber(s.forward_base_reading)} units`
+      return t("device.units", { value: fmtNumber(s.forward_base_reading) })
     case "reverse_base_reading":
-      return `${fmtNumber(s.reverse_base_reading)} units`
+      return t("device.units", { value: fmtNumber(s.reverse_base_reading) })
     case "debug_numbers":
       return s.debug_numbers?.join(", ") ?? s.debug_error ?? "—"
   }
@@ -68,6 +79,7 @@ function decoded(key: string, s: Snapshot): string {
 }
 
 export function DevicePage({ id }: { id: string }) {
+  const { t } = useTranslation()
   const base = `devices/${encodeURIComponent(id)}`
   const device = useQuery({ queryKey: ["device", id], queryFn: () => api.get<DeviceView>(base) })
   const map = useQuery({ queryKey: ["register-map"], queryFn: () => api.get<RegisterMap>("registers"), staleTime: Infinity })
@@ -86,22 +98,22 @@ export function DevicePage({ id }: { id: string }) {
           <span className="inline-flex flex-wrap items-center gap-2">
             {v && <OnlineBadge online={v.state.online} enabled={v.enabled} lastError={v.state.last_error} lastOk={v.state.last_ok_at} />}
             <span>
-              Registers of {id}
-              {v ? ` · bus ${v.config.bus} · slave ${v.config.slave}` : ""}
+              {t("device.subtitle", { id })}
+              {v ? t("device.subtitleBus", { bus: v.config.bus, slave: v.config.slave }) : ""}
             </span>
           </span>
         }
         actions={
           <>
-            <WithTip tip="Read every register from the encoder again.">
+            <WithTip tip={t("device.refreshTip")}>
               <Button variant="outline" onClick={() => snap.refetch()} disabled={snap.isFetching}>
-                {snap.isFetching ? <Spinner /> : <RefreshCwIcon />} Refresh
+                {snap.isFetching ? <Spinner /> : <RefreshCwIcon />} {t("device.refresh")}
               </Button>
             </WithTip>
-            <WithTip tip="Back to the measurement view of this meter.">
+            <WithTip tip={t("device.meterTip")}>
               <Button asChild variant="outline">
                 <a href={href("meters", id)}>
-                  <GaugeIcon /> Meter
+                  <GaugeIcon /> {t("device.meter")}
                 </a>
               </Button>
             </WithTip>
@@ -112,15 +124,15 @@ export function DevicePage({ id }: { id: string }) {
       {device.error && <ErrorBox error={device.error} />}
       {snap.error && (
         <div className="mb-6">
-          <ErrorBox error={snap.error} title="The encoder could not be read" />
+          <ErrorBox error={snap.error} title={t("device.readFailed")} />
         </div>
       )}
 
       <Tabs defaultValue="config">
         <TabsList className="mb-4">
-          <TabsTrigger value="config">Configuration</TabsTrigger>
-          <TabsTrigger value="map">Register map</TabsTrigger>
-          <TabsTrigger value="raw">Raw access</TabsTrigger>
+          <TabsTrigger value="config">{t("device.tabConfig")}</TabsTrigger>
+          <TabsTrigger value="map">{t("device.tabMap")}</TabsTrigger>
+          <TabsTrigger value="raw">{t("device.tabRaw")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="config">
@@ -138,8 +150,8 @@ export function DevicePage({ id }: { id: string }) {
                   key={`${s.read_at}-type`}
                   base={base}
                   path="device-type"
-                  title="Device type ID"
-                  hint="The encoder's slave type code (register 0x000A). Change it only if instructed for your installation."
+                  title={t("device.deviceType")}
+                  hint={t("device.deviceTypeHint")}
                   current={s.device_type}
                   invalidate={invalidate}
                 />
@@ -147,22 +159,22 @@ export function DevicePage({ id }: { id: string }) {
                   key={`${s.read_at}-threshold`}
                   base={base}
                   path="reverse-flow-threshold"
-                  title="Reverse flow threshold"
-                  hint="Threshold the encoder uses to detect reverse flow (register 0x000D), in the encoder's internal units."
+                  title={t("device.threshold")}
+                  hint={t("device.thresholdHint")}
                   current={s.reverse_flow_threshold}
                   invalidate={invalidate}
                 />
                 <Card className="lg:col-span-2">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-1.5">
-                      Diagnostics <Hint>Read-only health information reported by the encoder.</Hint>
+                      {t("device.diagnostics")} <Hint>{t("device.diagnosticsHint")}</Hint>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-                    <Field label="Battery status" hint="Battery status code (register 0x000E)." value={s.battery_status} />
-                    <Field label="Failure" hint="Failure code (register 0x000F). 0 means no failure reported." value={s.failure === 0 ? "0 · none" : s.failure} />
-                    <Field label="Firmware" hint="Software version date (registers 0x000B-0x000C)." value={s.firmware.text} />
-                    <Field label="Debug bytes" hint="Six diagnostic bytes debugNum1-6 (registers 0x0019-0x001B)." value={s.debug_numbers?.join(" ") ?? "unavailable"} />
+                    <Field label={t("device.battery")} hint={t("device.batteryHint")} value={s.battery_status} />
+                    <Field label={t("device.failure")} hint={t("device.failureHint")} value={s.failure === 0 ? t("device.failureValueNone") : s.failure} />
+                    <Field label={t("device.firmware")} hint={t("device.firmwareHint")} value={s.firmware.text} />
+                    <Field label={t("device.debug")} hint={t("device.debugHint")} value={s.debug_numbers?.join(" ") ?? t("device.unavailable")} />
                   </CardContent>
                 </Card>
               </div>
@@ -173,8 +185,8 @@ export function DevicePage({ id }: { id: string }) {
         <TabsContent value="map">
           <Card>
             <CardHeader>
-              <CardTitle>Register map</CardTitle>
-              <CardDescription>{s ? `Read ${fmtDateTime(s.read_at)}.` : "All documented holding registers."} 32-bit values span two registers, high word first.</CardDescription>
+              <CardTitle>{t("device.mapTitle")}</CardTitle>
+              <CardDescription>{s ? t("device.mapRead", { time: fmtDateTime(s.read_at) }) : t("device.mapAll")} {t("device.mapWords")}</CardDescription>
             </CardHeader>
             <CardContent>
               <QueryState query={map}>
@@ -182,16 +194,17 @@ export function DevicePage({ id }: { id: string }) {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Address</TableHead>
-                        <TableHead>Register</TableHead>
-                        <TableHead>Access</TableHead>
-                        <TableHead>Raw</TableHead>
-                        <TableHead>Value</TableHead>
+                        <TableHead>{t("device.address")}</TableHead>
+                        <TableHead>{t("device.register")}</TableHead>
+                        <TableHead>{t("device.access")}</TableHead>
+                        <TableHead>{t("device.raw")}</TableHead>
+                        <TableHead>{t("device.value")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {m.registers.map((r) => {
                         const raws = s?.raw.filter((x: RegisterValue) => x.key === r.key) ?? []
+                        const text = registerText(t, r)
                         return (
                           <TableRow key={r.key}>
                             <TableCell className="font-mono text-xs whitespace-nowrap">
@@ -200,14 +213,14 @@ export function DevicePage({ id }: { id: string }) {
                             </TableCell>
                             <TableCell>
                               <span className="inline-flex items-center gap-1.5 font-medium">
-                                {r.title} <Hint>{r.description}</Hint>
+                                {text.title} <Hint>{text.description}</Hint>
                               </span>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={r.access === "rw" ? "default" : "outline"}>{r.access === "rw" ? "read/write" : "read only"}</Badge>
+                              <Badge variant={r.access === "rw" ? "default" : "outline"}>{r.access === "rw" ? t("device.readWrite") : t("device.readOnly")}</Badge>
                             </TableCell>
                             <TableCell className="font-mono text-xs">{raws.map((x) => x.hex).join(" ") || "—"}</TableCell>
-                            <TableCell className="tabular-nums">{s ? decoded(r.key, s) : "—"}</TableCell>
+                            <TableCell className="tabular-nums">{s ? decoded(t, r.key, s) : "—"}</TableCell>
                           </TableRow>
                         )
                       })}
@@ -253,16 +266,17 @@ function CardShell({ title, hint, description, children }: { title: string; hint
 }
 
 function SlaveCard({ base, current, invalidate }: { base: string; current: number; invalidate: unknown[][] }) {
+  const { t } = useTranslation()
   const [slave, setSlave] = useState(current)
-  const save = useAction(() => api.put(`${base}/slave-address`, { slave }), { success: `Slave address changed to ${slave}`, invalidate })
+  const save = useAction(() => api.put(`${base}/slave-address`, { slave }), { success: t("device.slaveChanged", { slave }), invalidate })
   return (
-    <CardShell title="Slave address" hint="Re-addresses the encoder (register 0x0000) and updates this device's configuration to match." description={`Currently ${current}.`}>
+    <CardShell title={t("device.slaveTitle")} hint={t("device.slaveHint")} description={t("device.currently", { value: current })}>
       <div className="flex items-end gap-2">
-        <FormField id="slave" label="New address" hint="1-247, unique on the bus. The encoder answers only to the new address afterwards." className="flex-1">
+        <FormField id="slave" label={t("device.newAddress")} hint={t("device.newAddressHint")} className="flex-1">
           <Input id="slave" type="number" min={1} max={247} value={slave} onChange={(e) => setSlave(Number(e.target.value))} />
         </FormField>
-        <Confirm title={`Change slave address to ${slave}?`} description="The encoder will stop answering at its current address. The panel configuration is updated automatically." onConfirm={() => save.mutate(undefined)} tip="Write the new address to the encoder.">
-          <Button disabled={slave === current || slave < 1 || slave > 247 || save.isPending}>{save.isPending && <Spinner />} Change</Button>
+        <Confirm title={t("device.slaveConfirmTitle", { slave })} description={t("device.slaveConfirmDescription")} onConfirm={() => save.mutate(undefined)} tip={t("device.slaveTip")}>
+          <Button disabled={slave === current || slave < 1 || slave > 247 || save.isPending}>{save.isPending && <Spinner />} {t("device.change")}</Button>
         </Confirm>
       </div>
     </CardShell>
@@ -270,36 +284,37 @@ function SlaveCard({ base, current, invalidate }: { base: string; current: numbe
 }
 
 function ClockCard({ base, snap, tz, invalidate }: { base: string; snap: SnapshotResponse; tz: string; invalidate: unknown[][] }) {
+  const { t } = useTranslation()
   const [custom, setCustom] = useState(() => toLocalInput(new Date()))
-  const sync = useAction((time?: string) => api.put<{ time: string }>(`${base}/clock`, time ? { time } : {}), { success: (r) => `Clock set to ${r.time}`, invalidate })
+  const sync = useAction((time?: string) => api.put<{ time: string }>(`${base}/clock`, time ? { time } : {}), { success: (r) => t("device.clockSet", { time: r.time }), invalidate })
   const drift = snap.clock_drift_seconds
   return (
     <CardShell
-      title="Real-time clock"
-      hint="The encoder's clock (registers 0x0007-0x0009) holds local time without a time zone; the panel interprets it in the device's configured zone."
+      title={t("device.clockTitle")}
+      hint={t("device.clockHint")}
       description={
         snap.snapshot.clock.valid ? (
           <>
-            {fmtDateTime(snap.clock_time)} ({tz}) · drift {drift !== undefined ? `${drift > 0 ? "+" : ""}${fmtNumber(drift, 0)} s` : "—"}
+            {fmtDateTime(snap.clock_time)} ({tz}) · {t("device.drift", { value: drift !== undefined ? t("device.driftSeconds", { value: `${drift > 0 ? "+" : ""}${fmtNumber(drift, 0)}` }) : "—" })}
           </>
         ) : (
-          "The encoder reports an invalid date."
+          t("device.clockInvalid")
         )
       }
     >
       <div className="grid gap-3">
-        <WithTip tip="Write the server's current time, converted to the device's time zone.">
+        <WithTip tip={t("device.syncServerTip")}>
           <Button variant="outline" onClick={() => sync.mutate(undefined)} disabled={sync.isPending}>
-            {sync.isPending && <Spinner />} Synchronise with server time
+            {sync.isPending && <Spinner />} {t("device.syncServer")}
           </Button>
         </WithTip>
         <div className="flex items-end gap-2">
-          <FormField id="clock-custom" label="Set specific time" hint="Time in your browser's zone; it is converted to the device's zone before writing." className="flex-1">
+          <FormField id="clock-custom" label={t("device.setTime")} hint={t("device.setTimeHint")} className="flex-1">
             <Input id="clock-custom" type="datetime-local" step={1} value={custom} onChange={(e) => setCustom(e.target.value)} />
           </FormField>
-          <WithTip tip="Write the chosen time to the encoder.">
+          <WithTip tip={t("device.setTimeTip")}>
             <Button onClick={() => sync.mutate(new Date(custom).toISOString().replace(/\.\d+Z$/, "Z"))} disabled={sync.isPending || !custom}>
-              Set
+              {t("common.set")}
             </Button>
           </WithTip>
         </div>
@@ -309,17 +324,18 @@ function ClockCard({ base, snap, tz, invalidate }: { base: string; snap: Snapsho
 }
 
 function PulseCard({ base, s, expected, invalidate }: { base: string; s: Snapshot; expected: { base_liters_per_pulse: number; output_liters_per_unit: number }; invalidate: unknown[][] }) {
+  const { t } = useTranslation()
   const [vals, setVals] = useState({ base: s.base_pulse_liters, output: s.output_pulse_liters })
-  const save = useAction(() => api.put(`${base}/pulse-equivalents`, { base_liters_per_pulse: vals.base, output_liters_per_unit: vals.output }), { success: "Pulse equivalents written", invalidate })
-  const apply = useAction(() => api.post(`${base}/pulse-equivalents/apply`), { success: "Expected pulse equivalents applied", invalidate })
+  const save = useAction(() => api.put(`${base}/pulse-equivalents`, { base_liters_per_pulse: vals.base, output_liters_per_unit: vals.output }), { success: t("device.pulseWritten"), invalidate })
+  const apply = useAction(() => api.post(`${base}/pulse-equivalents/apply`), { success: t("device.pulseApplied"), invalidate })
   const invalid = vals.base < 1 || vals.base > 10000 || vals.output < 1 || vals.output > 1000 || vals.output < vals.base
   const hasExpected = expected.base_liters_per_pulse > 0
   const mismatch = hasExpected && (expected.base_liters_per_pulse !== s.base_pulse_liters || expected.output_liters_per_unit !== s.output_pulse_liters)
   return (
     <CardShell
-      title="Pulse equivalents"
-      hint="How the encoder converts the meter's pulses into its counters (registers 0x0010-0x0011)."
-      description={`Encoder: ${s.base_pulse_liters} L/pulse in, ${s.output_pulse_liters} L/unit out.${hasExpected ? ` Expected: ${expected.base_liters_per_pulse} / ${expected.output_liters_per_unit}.` : ""}`}
+      title={t("device.pulseTitle")}
+      hint={t("device.pulseHint")}
+      description={t("device.pulseDescription", { base: s.base_pulse_liters, output: s.output_pulse_liters }) + (hasExpected ? t("device.pulseExpected", { base: expected.base_liters_per_pulse, output: expected.output_liters_per_unit }) : "")}
     >
       <form
         className="grid gap-3"
@@ -329,30 +345,30 @@ function PulseCard({ base, s, expected, invalidate }: { base: string; s: Snapsho
         }}
       >
         <div className="grid grid-cols-2 gap-3">
-          <FormField id="pulse-base" label="Base (L/pulse)" hint="Liters per pulse emitted by the physical meter's sender, 1-10000. Must match the meter's nameplate.">
+          <FormField id="pulse-base" label={t("device.pulseBase")} hint={t("device.pulseBaseHint")}>
             <Input id="pulse-base" type="number" min={1} max={10000} value={vals.base} onChange={(e) => setVals({ ...vals, base: Number(e.target.value) })} />
           </FormField>
-          <FormField id="pulse-out" label="Output (L/unit)" hint="Liters per counter unit reported over Modbus, 1-1000, not lower than the base value. Changing it changes the scale of all counters.">
+          <FormField id="pulse-out" label={t("device.pulseOutput")} hint={t("device.pulseOutputHint")}>
             <Input id="pulse-out" type="number" min={1} max={1000} value={vals.output} onChange={(e) => setVals({ ...vals, output: Number(e.target.value) })} />
           </FormField>
         </div>
-        {invalid && <p className="text-sm font-medium">Base must be 1-10000, output 1-1000 and output ≥ base.</p>}
+        {invalid && <p className="text-sm font-medium">{t("device.pulseInvalid")}</p>}
         {mismatch && (
           <Alert>
-            <AlertTitle>Differs from the configuration</AlertTitle>
-            <AlertDescription>The encoder does not match the expected values set for this meter.</AlertDescription>
+            <AlertTitle>{t("device.pulseMismatch")}</AlertTitle>
+            <AlertDescription>{t("device.pulseMismatchDescription")}</AlertDescription>
           </Alert>
         )}
         <div className="flex flex-wrap gap-2">
-          <WithTip tip="Write both values to the encoder in one request.">
+          <WithTip tip={t("device.pulseWriteTip")}>
             <Button type="submit" disabled={invalid || save.isPending}>
-              {save.isPending && <Spinner />} Write
+              {save.isPending && <Spinner />} {t("common.write")}
             </Button>
           </WithTip>
           {hasExpected && (
-            <WithTip tip="Write the expected values from this device's meter configuration.">
+            <WithTip tip={t("device.pulseApplyTip")}>
               <Button type="button" variant="outline" onClick={() => apply.mutate(undefined)} disabled={apply.isPending}>
-                Apply expected
+                {t("device.pulseApply")}
               </Button>
             </WithTip>
           )}
@@ -363,6 +379,7 @@ function PulseCard({ base, s, expected, invalidate }: { base: string; s: Snapsho
 }
 
 function BaseReadingsCard({ base, s, invalidate }: { base: string; s: Snapshot; invalidate: unknown[][] }) {
+  const { t } = useTranslation()
   const [mode, setMode] = useState<"liters" | "raw">("liters")
   const [fwd, setFwd] = useState("")
   const [rev, setRev] = useState("")
@@ -373,7 +390,7 @@ function BaseReadingsCard({ base, s, invalidate }: { base: string; s: Snapshot; 
     return b
   }
   const save = useAction(() => api.put(`${base}/base-readings`, body()), {
-    success: "Counters preset",
+    success: t("device.basePreset"),
     invalidate,
     onSuccess: () => {
       setFwd("")
@@ -382,32 +399,32 @@ function BaseReadingsCard({ base, s, invalidate }: { base: string; s: Snapshot; 
   })
   return (
     <CardShell
-      title="Base readings"
-      hint="Presets the forward and reverse counters (registers 0x0012-0x0015), e.g. to match the mechanical register of the meter when installing the encoder."
-      description={`Forward ${fmtNumber(s.forward_base_reading)} · reverse ${fmtNumber(s.reverse_base_reading)} units.`}
+      title={t("device.baseTitle")}
+      hint={t("device.baseHint")}
+      description={t("device.baseDescription", { forward: fmtNumber(s.forward_base_reading), reverse: fmtNumber(s.reverse_base_reading) })}
     >
       <div className="grid gap-3">
         <div className="flex items-center gap-2">
           <ToggleGroup type="single" variant="outline" size="sm" value={mode} onValueChange={(v) => v && setMode(v as "liters" | "raw")}>
-            <WithTip tip="Enter volumes in liters; they are converted with the meter's resolution and offset.">
-              <ToggleGroupItem value="liters">Liters</ToggleGroupItem>
+            <WithTip tip={t("device.litersTip")}>
+              <ToggleGroupItem value="liters">{t("device.liters")}</ToggleGroupItem>
             </WithTip>
-            <WithTip tip="Enter raw counter units exactly as stored in the encoder.">
-              <ToggleGroupItem value="raw">Raw units</ToggleGroupItem>
+            <WithTip tip={t("device.rawUnitsTip")}>
+              <ToggleGroupItem value="raw">{t("device.rawUnits")}</ToggleGroupItem>
             </WithTip>
           </ToggleGroup>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FormField id="base-fwd" label={mode === "raw" ? "Forward (units)" : "Forward (L)"} hint="New forward reading. Leave empty to keep the current value.">
+          <FormField id="base-fwd" label={mode === "raw" ? t("device.forwardUnits") : t("device.forwardLiters")} hint={t("device.forwardHint")}>
             <Input id="base-fwd" type="number" min={0} step="any" value={fwd} onChange={(e) => setFwd(e.target.value)} />
           </FormField>
-          <FormField id="base-rev" label={mode === "raw" ? "Reverse (units)" : "Reverse (L)"} hint="New reverse reading. Leave empty to keep the current value.">
+          <FormField id="base-rev" label={mode === "raw" ? t("device.reverseUnits") : t("device.reverseLiters")} hint={t("device.reverseHint")}>
             <Input id="base-rev" type="number" min={0} step="any" value={rev} onChange={(e) => setRev(e.target.value)} />
           </FormField>
         </div>
-        <Confirm title="Preset the counters?" description="The encoder's counters jump to the new values. Consumption computed across this moment is flagged as a counter reset." onConfirm={() => save.mutate(undefined)} tip="Write the new base readings to the encoder.">
+        <Confirm title={t("device.baseConfirmTitle")} description={t("device.baseConfirmDescription")} onConfirm={() => save.mutate(undefined)} tip={t("device.baseTip")}>
           <Button disabled={(fwd === "" && rev === "") || save.isPending} className="justify-self-start">
-            {save.isPending && <Spinner />} Write
+            {save.isPending && <Spinner />} {t("common.write")}
           </Button>
         </Confirm>
       </div>
@@ -416,17 +433,18 @@ function BaseReadingsCard({ base, s, invalidate }: { base: string; s: Snapshot; 
 }
 
 function ValueCard({ base, path, title, hint, current, invalidate }: { base: string; path: string; title: string; hint: string; current: number; invalidate: unknown[][] }) {
+  const { t } = useTranslation()
   const [value, setValue] = useState(current)
-  const save = useAction(() => api.put(`${base}/${path}`, { value }), { success: `${title} written`, invalidate })
+  const save = useAction(() => api.put(`${base}/${path}`, { value }), { success: t("device.valueWritten", { title }), invalidate })
   return (
-    <CardShell title={title} hint={hint} description={`Currently ${current}.`}>
+    <CardShell title={title} hint={hint} description={t("device.currently", { value: current })}>
       <div className="flex items-end gap-2">
-        <FormField id={path} label="New value" hint="Integer 0-65535." className="flex-1">
+        <FormField id={path} label={t("device.newValue")} hint={t("device.newValueHint")} className="flex-1">
           <Input id={path} type="number" min={0} max={65535} value={value} onChange={(e) => setValue(Number(e.target.value))} />
         </FormField>
-        <WithTip tip={`Write the value to the encoder.`}>
+        <WithTip tip={t("device.valueTip")}>
           <Button onClick={() => save.mutate(undefined)} disabled={value === current || value < 0 || value > 65535 || save.isPending}>
-            {save.isPending && <Spinner />} Write
+            {save.isPending && <Spinner />} {t("common.write")}
           </Button>
         </WithTip>
       </div>
@@ -440,6 +458,7 @@ function parseNum(s: string) {
 }
 
 function RawAccess({ base, allowWrites, invalidate }: { base: string; allowWrites: boolean; invalidate: unknown[][] }) {
+  const { t } = useTranslation()
   const [read, setRead] = useState({ address: "0x0000", count: "22" })
   const [result, setResult] = useState<RegisterValue[] | null>(null)
   const [write, setWrite] = useState({ address: "0x000D", values: "" })
@@ -450,24 +469,24 @@ function RawAccess({ base, allowWrites, invalidate }: { base: string; allowWrite
       values.length === 1
         ? api.put(`${base}/registers/${parseNum(write.address)}`, { value: values[0] })
         : api.post(`${base}/registers`, { address: parseNum(write.address), values }),
-    { success: values.length === 1 ? "Register written (0x06)" : `${values.length} registers written (0x10)`, invalidate },
+    { success: values.length === 1 ? t("device.writtenSingle") : t("device.writtenMultiple", { count: values.length }), invalidate },
   )
   const badWrite = values.length === 0 || values.some((v) => !Number.isInteger(v) || v < 0 || v > 65535) || !Number.isInteger(parseNum(write.address))
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <CardShell title="Read holding registers" hint="Function 0x03. Reads up to 125 consecutive registers starting at any address, including undocumented ones." description="Addresses accept decimal or 0x-prefixed hex.">
+      <CardShell title={t("device.readTitle")} hint={t("device.readHint")} description={t("device.readDescription")}>
         <div className="grid gap-3">
           <div className="flex items-end gap-2">
-            <FormField id="raw-addr" label="Start address" hint="First register address, 0-65535." className="flex-1">
+            <FormField id="raw-addr" label={t("device.startAddress")} hint={t("device.startAddressHint")} className="flex-1">
               <Input id="raw-addr" value={read.address} onChange={(e) => setRead({ ...read, address: e.target.value })} />
             </FormField>
-            <FormField id="raw-count" label="Count" hint="Number of registers, 1-125." className="w-24">
+            <FormField id="raw-count" label={t("device.count")} hint={t("device.countHint")} className="w-24">
               <Input id="raw-count" value={read.count} onChange={(e) => setRead({ ...read, count: e.target.value })} />
             </FormField>
-            <WithTip tip="Send the read request to the encoder.">
+            <WithTip tip={t("device.readTip")}>
               <Button onClick={() => doRead.mutate(undefined)} disabled={doRead.isPending}>
-                {doRead.isPending && <Spinner />} Read
+                {doRead.isPending && <Spinner />} {t("common.read")}
               </Button>
             </WithTip>
           </div>
@@ -475,10 +494,10 @@ function RawAccess({ base, allowWrites, invalidate }: { base: string; allowWrite
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Hex</TableHead>
-                  <TableHead className="text-right">Decimal</TableHead>
-                  <TableHead>Register</TableHead>
+                  <TableHead>{t("device.address")}</TableHead>
+                  <TableHead>{t("device.hex")}</TableHead>
+                  <TableHead className="text-right">{t("device.decimal")}</TableHead>
+                  <TableHead>{t("device.register")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -498,25 +517,25 @@ function RawAccess({ base, allowWrites, invalidate }: { base: string; allowWrite
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-1.5">
-            Write registers <Hint>One value uses function 0x06 (write single register); several values use 0x10 (write multiple registers) starting at the address.</Hint>
+            {t("device.writeTitle")} <Hint>{t("device.writeHint")}</Hint>
           </CardTitle>
-          <CardDescription>{allowWrites ? "Writes go straight to the encoder without validation. Prefer the Configuration tab." : "Disabled by the server (modbus.allow_raw_writes: false)."}</CardDescription>
+          <CardDescription>{allowWrites ? t("device.writeAllowed") : t("device.writeDisabled")}</CardDescription>
           <CardAction>
-            <Badge variant="outline">Advanced</Badge>
+            <Badge variant="outline">{t("device.advanced")}</Badge>
           </CardAction>
         </CardHeader>
         <CardContent className="grid gap-3">
           <div className="grid grid-cols-3 gap-2">
-            <FormField id="w-addr" label="Address" hint="Register address to write, 0-65535 (decimal or 0x hex).">
+            <FormField id="w-addr" label={t("device.address")} hint={t("device.writeAddressHint")}>
               <Input id="w-addr" value={write.address} disabled={!allowWrites} onChange={(e) => setWrite({ ...write, address: e.target.value })} />
             </FormField>
-            <FormField id="w-vals" label="Values" hint="One or more 16-bit values (0-65535), separated by commas or spaces; up to 123." className="col-span-2">
-              <Input id="w-vals" placeholder="e.g. 5 or 0x0001, 0x000A" value={write.values} disabled={!allowWrites} onChange={(e) => setWrite({ ...write, values: e.target.value })} />
+            <FormField id="w-vals" label={t("device.values")} hint={t("device.valuesHint")} className="col-span-2">
+              <Input id="w-vals" placeholder={t("device.valuesPlaceholder")} value={write.values} disabled={!allowWrites} onChange={(e) => setWrite({ ...write, values: e.target.value })} />
             </FormField>
           </div>
-          <Confirm title="Write raw registers?" description={`Write ${values.length} value(s) starting at ${write.address}. Writing the slave address register also updates the panel's configuration.`} onConfirm={() => doWrite.mutate(undefined)} tip="Send the write request to the encoder.">
+          <Confirm title={t("device.writeConfirmTitle")} description={t("device.writeConfirmDescription", { count: values.length, address: write.address })} onConfirm={() => doWrite.mutate(undefined)} tip={t("device.writeTip")}>
             <Button disabled={!allowWrites || badWrite || doWrite.isPending} className="justify-self-start">
-              {doWrite.isPending && <Spinner />} Write
+              {doWrite.isPending && <Spinner />} {t("common.write")}
             </Button>
           </Confirm>
         </CardContent>

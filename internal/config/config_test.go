@@ -56,3 +56,22 @@ func TestValidateRejects(t *testing.T) {
 		t.Fatal("expected validation errors")
 	}
 }
+
+func TestUILanguage(t *testing.T) {
+	cfg, _, err := Load(NewViper(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Server.UILanguage != "en" {
+		t.Fatalf("default ui_language: %q", cfg.Server.UILanguage)
+	}
+	cfg.Server.UILanguage = " ES "
+	cfg.Normalize()
+	if err := cfg.Validate(); err != nil || cfg.Server.UILanguage != "es" {
+		t.Fatalf("es rejected: %v (%q)", err, cfg.Server.UILanguage)
+	}
+	cfg.Server.UILanguage = "fr"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("fr accepted")
+	}
+}

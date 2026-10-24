@@ -26,6 +26,10 @@ server:
   cors_origins: []
   # Serve the embedded web dashboard.
   ui: true
+  # Dashboard language (en, es) for browsers whose preferred languages are all
+  # unsupported. Otherwise the browser's preference wins; viewers can also pick
+  # a language in the dashboard.
+  ui_language: en
   access_log: true
   rate_limit:
     enabled: true

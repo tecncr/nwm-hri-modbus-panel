@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 
 import { AppShell } from "@/components/app-shell"
 import { getApiKey, onApiKeyChange } from "@/lib/api"
@@ -22,6 +23,9 @@ export default function App() {
   const key = useApiKey()
   const qc = useQueryClient()
   const route = useRoute()
+  // Subscribing here re-renders the whole tree when the language changes, so
+  // values formatted outside components (dates, numbers) follow it too.
+  useTranslation()
 
   // Drop cached data from the previous session when signing out.
   useEffect(() => {

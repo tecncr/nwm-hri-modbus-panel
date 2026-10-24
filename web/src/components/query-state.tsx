@@ -1,15 +1,17 @@
 import type { ReactNode } from "react"
 import { TriangleAlertIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { errorMessage } from "@/lib/api"
 
-export function ErrorBox({ error, title = "Request failed" }: { error: unknown; title?: string }) {
+export function ErrorBox({ error, title }: { error: unknown; title?: string }) {
+  const { t } = useTranslation()
   return (
     <Alert>
       <TriangleAlertIcon />
-      <AlertTitle>{title}</AlertTitle>
+      <AlertTitle>{title ?? t("query.failed")}</AlertTitle>
       <AlertDescription>{errorMessage(error)}</AlertDescription>
     </Alert>
   )

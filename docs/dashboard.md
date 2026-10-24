@@ -12,6 +12,27 @@ Enter the master API key. By default it is kept only for the browser tab
 storage until you sign out. A `401` from the server signs you out
 automatically.
 
+## Languages
+
+The dashboard is available in English and Spanish (Peru). The language is
+chosen, in order, from:
+
+1. the viewer's explicit choice in the language menu (the **文A** icon in the
+   header or on the sign-in screen), stored in that browser;
+2. the browser's preferred languages (`navigator.languages`, the same list it
+   sends as `Accept-Language`), taking the first supported one; a regional
+   variant such as `es-MX` selects Spanish;
+3. `server.ui_language` (`NWM_PANEL_SERVER_UI_LANGUAGE`, `--ui-language`),
+   which the server writes into `index.html` — the fallback for browsers that
+   prefer none of the supported languages or send no preference.
+
+Choosing *Automatic* in the menu forgets the explicit choice. Numbers and
+dates follow the browser's regional variant of the chosen language
+(`es-PE` or `en-US` when the browser has none). Schedule descriptions and build
+placeholders reported by the server are translated by the dashboard; other
+text produced by the server, such as error messages and reading warnings,
+stays in English.
+
 ## Pages
 
 | Page | Audience | What it shows |
@@ -68,6 +89,7 @@ Source layout:
 |---|---|
 | `src/lib/api.ts` | Fetch wrapper: relative URLs, Bearer auth, error envelope, downloads |
 | `src/lib/types.ts` | API types |
+| `src/i18n/` | i18next setup and language detection; `en.ts` holds the source strings, `es.ts` must provide the same keys (checked by TypeScript) |
 | `src/pages/` | One file per page |
 | `src/components/` | Shared pieces: charts, forms, dialogs, tooltips |
 | `src/components/ui/` | stock shadcn/ui components |

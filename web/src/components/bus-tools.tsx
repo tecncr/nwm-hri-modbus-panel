@@ -1,6 +1,7 @@
 import { WithTip } from "@/components/hint"
 import { useState, type ReactNode } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,7 @@ import type { BusView, ScanJob } from "@/lib/types"
 
 /** Probes a range of slave addresses and lists the encoders that answer. */
 export function ScanDialog({ bus, buses, children, tip }: { tip?: string; bus: string; buses: BusView[]; children: ReactNode }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [params, setParams] = useState({ from: 1, to: 247, timeout_ms: 300 })
   const qc = useQueryClient()
@@ -46,17 +48,17 @@ export function ScanDialog({ bus, buses, children, tip }: { tip?: string; bus: s
       </WithTip>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Scan bus {bus}</DialogTitle>
-          <DialogDescription>Reads the slave address register of every address in the range. Regular traffic (recording, live reads) continues between probes.</DialogDescription>
+          <DialogTitle>{t("scan.title", { bus })}</DialogTitle>
+          <DialogDescription>{t("scan.description")}</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-3 gap-4">
-          <FormField id="scan-from" label="From" hint="First slave address to probe (1-247).">
+          <FormField id="scan-from" label={t("scan.from")} hint={t("scan.fromHint")}>
             <Input id="scan-from" type="number" min={1} max={247} value={params.from} onChange={(e) => setParams({ ...params, from: Number(e.target.value) })} />
           </FormField>
-          <FormField id="scan-to" label="To" hint="Last slave address to probe (1-247).">
+          <FormField id="scan-to" label={t("scan.to")} hint={t("scan.toHint")}>
             <Input id="scan-to" type="number" min={1} max={247} value={params.to} onChange={(e) => setParams({ ...params, to: Number(e.target.value) })} />
           </FormField>
-          <FormField id="scan-timeout" label="Timeout (ms)" hint="How long to wait for each address (20-5000 ms). Silent addresses cost the full timeout, so a full scan at 300 ms takes about 75 s.">
+          <FormField id="scan-timeout" label={t("scan.timeout")} hint={t("scan.timeoutHint")}>
             <Input id="scan-timeout" type="number" min={20} max={5000} value={params.timeout_ms} onChange={(e) => setParams({ ...params, timeout_ms: Number(e.target.value) })} />
           </FormField>
         </div>
@@ -65,7 +67,7 @@ export function ScanDialog({ bus, buses, children, tip }: { tip?: string; bus: s
           <div className="grid gap-3">
             <div className="flex items-center justify-between text-sm">
               <span>
-                {job.data.done ? (job.data.cancelled ? "Cancelled" : "Finished") : `Probing address ${job.data.current}…`} · {job.data.found.length} found
+                {job.data.done ? (job.data.cancelled ? t("scan.cancelled") : t("scan.finished")) : t("scan.probing", { address: job.data.current })} · {t("scan.found", { count: job.data.found.length })}
               </span>
               <span className="tabular-nums">{Math.round(job.data.progress * 100)}%</span>
             </div>
@@ -76,10 +78,10 @@ export function ScanDialog({ bus, buses, children, tip }: { tip?: string; bus: s
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Address</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Firmware</TableHead>
-                    <TableHead>Configured as</TableHead>
+                    <TableHead>{t("scan.address")}</TableHead>
+                    <TableHead>{t("scan.type")}</TableHead>
+                    <TableHead>{t("scan.firmware")}</TableHead>
+                    <TableHead>{t("scan.configuredAs")}</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -94,7 +96,7 @@ export function ScanDialog({ bus, buses, children, tip }: { tip?: string; bus: s
                         {!f.configured_as && (
                           <DeviceDialog buses={buses} preset={{ bus, slave: f.slave, id: `${bus}-${f.slave}` }}>
                             <Button size="sm" variant="outline">
-                              <PlusIcon /> Add
+                              <PlusIcon /> {t("common.add")}
                             </Button>
                           </DeviceDialog>
                         )}
@@ -109,11 +111,11 @@ export function ScanDialog({ bus, buses, children, tip }: { tip?: string; bus: s
         <DialogFooter>
           {running ? (
             <Button variant="outline" onClick={() => cancel.mutate(undefined)}>
-              Cancel scan
+              {t("scan.cancel")}
             </Button>
           ) : (
             <Button onClick={() => start.mutate(undefined)} disabled={start.isPending || params.from > params.to}>
-              {start.isPending && <Spinner />} Start scan (≤ {estimate}s)
+              {start.isPending && <Spinner />} {t("scan.start", { seconds: estimate })}
             </Button>
           )}
         </DialogFooter>
@@ -124,11 +126,12 @@ export function ScanDialog({ bus, buses, children, tip }: { tip?: string; bus: s
 
 /** Assigns a slave address to every encoder on the bus (commissioning). */
 export function BroadcastAddressDialog({ bus, children, tip }: { tip?: string; bus: string; children: ReactNode }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [slave, setSlave] = useState(1)
   const [confirm, setConfirm] = useState(false)
   const send = useAction(() => api.post(`buses/${encodeURIComponent(bus)}/broadcast/slave-address`, { slave, confirm }), {
-    success: `Address ${slave} broadcast`,
+    success: t("broadcastAddress.success", { slave }),
     onSuccess: () => setOpen(false),
   })
   return (
@@ -144,21 +147,21 @@ export function BroadcastAddressDialog({ bus, children, tip }: { tip?: string; b
       </WithTip>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Broadcast slave address</DialogTitle>
-          <DialogDescription>Writes the address with the broadcast address 0, so the encoder does not need to be known. Every encoder on bus {bus} takes the new address: connect only the one you are commissioning.</DialogDescription>
+          <DialogTitle>{t("broadcastAddress.title")}</DialogTitle>
+          <DialogDescription>{t("broadcastAddress.description", { bus })}</DialogDescription>
         </DialogHeader>
-        <FormField id="bc-slave" label="New address" hint="Address (1-247) the encoder will answer to afterwards.">
+        <FormField id="bc-slave" label={t("broadcastAddress.newAddress")} hint={t("broadcastAddress.newAddressHint")}>
           <Input id="bc-slave" type="number" min={1} max={247} value={slave} onChange={(e) => setSlave(Number(e.target.value))} />
         </FormField>
         <div className="flex items-center gap-2">
           <Checkbox id="bc-confirm" checked={confirm} onCheckedChange={(v) => setConfirm(v === true)} />
           <Label htmlFor="bc-confirm" className="font-normal">
-            Only one encoder is connected to this bus
+            {t("broadcastAddress.confirm")}
           </Label>
         </div>
         <DialogFooter>
           <Button onClick={() => send.mutate(undefined)} disabled={!confirm || send.isPending}>
-            {send.isPending && <Spinner />} Broadcast
+            {send.isPending && <Spinner />} {t("broadcastAddress.send")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -168,10 +171,11 @@ export function BroadcastAddressDialog({ bus, children, tip }: { tip?: string; b
 
 /** Sets the clock of every encoder on the bus to the server time. */
 export function BroadcastClockDialog({ bus, children, tip }: { tip?: string; bus: string; children: ReactNode }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [tz, setTz] = useState("")
   const send = useAction(() => api.post<{ time: string }>(`buses/${encodeURIComponent(bus)}/broadcast/clock`, tz ? { timezone: tz } : {}), {
-    success: (r) => `Clock set to ${r.time}`,
+    success: (r) => t("broadcastClock.success", { time: r.time }),
     onSuccess: () => setOpen(false),
   })
   return (
@@ -181,15 +185,15 @@ export function BroadcastClockDialog({ bus, children, tip }: { tip?: string; bus
       </WithTip>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Synchronise all clocks</DialogTitle>
-          <DialogDescription>Broadcasts the server's current time to every encoder on bus {bus}. Broadcasts are not acknowledged; verify individual clocks afterwards.</DialogDescription>
+          <DialogTitle>{t("broadcastClock.title")}</DialogTitle>
+          <DialogDescription>{t("broadcastClock.description", { bus })}</DialogDescription>
         </DialogHeader>
-        <FormField id="bc-tz" label="Time zone" hint="IANA time zone the encoders' clocks should follow, e.g. America/Lima. Empty uses the server's local zone.">
-          <Input id="bc-tz" placeholder="Server local time" value={tz} onChange={(e) => setTz(e.target.value)} />
+        <FormField id="bc-tz" label={t("broadcastClock.timezone")} hint={t("broadcastClock.timezoneHint")}>
+          <Input id="bc-tz" placeholder={t("broadcastClock.timezonePlaceholder")} value={tz} onChange={(e) => setTz(e.target.value)} />
         </FormField>
         <DialogFooter>
           <Button onClick={() => send.mutate(undefined)} disabled={send.isPending}>
-            {send.isPending && <Spinner />} Synchronise
+            {send.isPending && <Spinner />} {t("broadcastClock.send")}
           </Button>
         </DialogFooter>
       </DialogContent>

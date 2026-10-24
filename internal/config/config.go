@@ -35,6 +35,7 @@ type ServerConfig struct {
 	BodyLimit      int             `mapstructure:"body_limit" yaml:"body_limit" json:"body_limit"`
 	CORSOrigins    []string        `mapstructure:"cors_origins" yaml:"cors_origins" json:"cors_origins"`
 	UI             bool            `mapstructure:"ui" yaml:"ui" json:"ui"`
+	UILanguage     string          `mapstructure:"ui_language" yaml:"ui_language" json:"ui_language"`
 	AccessLog      bool            `mapstructure:"access_log" yaml:"access_log" json:"access_log"`
 	RateLimit      RateLimitConfig `mapstructure:"rate_limit" yaml:"rate_limit" json:"rate_limit"`
 }
@@ -60,6 +61,9 @@ type ModbusConfig struct {
 	AllowBroadcast bool     `mapstructure:"allow_broadcast" yaml:"allow_broadcast" json:"allow_broadcast"`
 	LiveCacheTTL   Duration `mapstructure:"live_cache_ttl" yaml:"live_cache_ttl" json:"live_cache_ttl"`
 }
+
+// UILanguages lists the languages the embedded dashboard is translated to.
+var UILanguages = []string{"en", "es"}
 
 // Storage drivers.
 const (

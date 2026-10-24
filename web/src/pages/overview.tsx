@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { RefreshCwIcon, TriangleAlertIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -16,11 +17,12 @@ import { useRange } from "@/components/range-picker"
 import { Stat } from "@/components/stat"
 import { OnlineBadge } from "@/components/status"
 import { api, errorMessage } from "@/lib/api"
-import { fmtNumber, fmtRelative, fmtVolume } from "@/lib/format"
+import { fmtGoDuration, fmtNumber, fmtRelative, fmtSchedule, fmtVolume } from "@/lib/format"
 import type { ConsumptionSummary, Meter, SeriesPoint, SystemInfo } from "@/lib/types"
 import { href } from "@/hooks/use-route"
 
 export function OverviewPage() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const meters = useQuery({ queryKey: ["meters"], queryFn: () => api.get<{ meters: Meter[] }>("meters"), refetchInterval: 15_000 })
   const system = useQuery({ queryKey: ["system"], queryFn: () => api.get<SystemInfo>("system"), refetchInterval: 30_000 })
@@ -62,8 +64,8 @@ export function OverviewPage() {
     const results = await Promise.allSettled(list.filter((m) => m.enabled).map((m) => api.get(`meters/${encodeURIComponent(m.id)}`, { max_age: "0s" })))
     const failed = results.filter((r) => r.status === "rejected")
     qc.invalidateQueries({ queryKey: ["meters"] })
-    if (failed.length) toast.error(`${failed.length} of ${results.length} meters did not answer`, { description: errorMessage((failed[0] as PromiseRejectedResult).reason) })
-    else toast.success(`Read ${results.length} meters`)
+    if (failed.length) toast.error(t("overview.notAnswered", { failed: failed.length, count: results.length }), { description: errorMessage((failed[0] as PromiseRejectedResult).reason) })
+    else toast.success(t("overview.readAllDone", { count: results.length }))
   }
 
   const online = list.filter((m) => m.online).length
@@ -72,50 +74,50 @@ export function OverviewPage() {
   return (
     <>
       <PageHeader
-        title="Overview"
-        description="Live state and consumption of every configured meter."
+        title={t("overview.title")}
+        description={t("overview.description")}
         actions={
-          <WithTip tip="Reads every enabled meter over the bus right now, bypassing the live cache. Readings are not stored; the recorder stores them on its schedule.">
+          <WithTip tip={t("overview.readAllTip")}>
             <Button variant="outline" onClick={readAll} disabled={list.length === 0}>
-              <RefreshCwIcon /> Read all now
+              <RefreshCwIcon /> {t("overview.readAll")}
             </Button>
           </WithTip>
         }
       />
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Meters online" value={meters.data ? `${online} / ${list.length}` : "—"} hint="Meters whose most recent request succeeded, out of all configured meters." />
+        <Stat label={t("overview.online")} value={meters.data ? `${online} / ${list.length}` : "—"} hint={t("overview.onlineHint")} />
         <Stat
-          label="Net consumption"
+          label={t("overview.net")}
           value={summary.data ? fmtVolume(summary.data.total_net_liters) : "—"}
-          sub="In the selected range"
-          hint="Forward minus reverse volume across all meters in the selected range, computed from recorded measurements."
+          sub={t("overview.netSub")}
+          hint={t("overview.netHint")}
         />
         <Stat
-          label="Recorder"
-          value={rec ? (rec.enabled ? (rec.last_run ? `${rec.last_run.recorded} ok` : "Waiting") : "Off") : "—"}
-          sub={rec?.next_run ? `Next ${fmtRelative(rec.next_run)}` : rec?.schedule}
-          hint="Result of the last scheduled recording pass and when the next one runs."
+          label={t("overview.recorder")}
+          value={rec ? (rec.enabled ? (rec.last_run ? t("overview.recorderOk", { count: rec.last_run.recorded }) : t("overview.waiting")) : t("common.off")) : "—"}
+          sub={rec?.next_run ? t("overview.next", { when: fmtRelative(rec.next_run) }) : rec && fmtSchedule(rec.schedule)}
+          hint={t("overview.recorderHint")}
         />
         <Stat
-          label="Stored rows"
+          label={t("overview.rows")}
           value={system.data ? fmtNumber(system.data.storage.stats.rows) : "—"}
-          sub={system.data ? `${system.data.storage.driver}${system.data.storage.stats.estimated ? " · estimate" : ""}` : undefined}
-          hint="Number of measurements in the database. On TimescaleDB this is a fast estimate."
+          sub={system.data ? `${system.data.storage.driver}${system.data.storage.stats.estimated ? t("overview.estimate") : ""}` : undefined}
+          hint={t("overview.rowsHint")}
         />
       </div>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 text-lg font-bold">
-          Consumption <Hint>Both charts are computed from recorded measurements. The range applies to both.</Hint>
+          {t("overview.consumption")} <Hint>{t("overview.consumptionHint")}</Hint>
         </h2>
         {control}
       </div>
       <div className="mb-6 grid gap-6 lg:grid-cols-5">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>By meter</CardTitle>
-            <CardDescription>Net volume per meter in the range.</CardDescription>
+            <CardTitle>{t("overview.byMeter")}</CardTitle>
+            <CardDescription>{t("overview.byMeterDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <QueryState query={summary}>
@@ -125,9 +127,9 @@ export function OverviewPage() {
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Over time</CardTitle>
+            <CardTitle>{t("overview.overTime")}</CardTitle>
             <CardDescription>
-              Net volume per {range.bucket} bucket{list.length > MAX_SERIES ? ` · first ${MAX_SERIES} meters` : ""}.
+              {list.length > MAX_SERIES ? t("overview.firstMeters", { bucket: fmtGoDuration(range.bucket), count: MAX_SERIES }) : t("overview.overTimeDescription", { bucket: fmtGoDuration(range.bucket) })}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -146,11 +148,11 @@ export function OverviewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Meters</CardTitle>
-          <CardDescription>Last known reading of each meter. Open a meter for its history.</CardDescription>
+          <CardTitle>{t("overview.meters")}</CardTitle>
+          <CardDescription>{t("overview.metersDescription")}</CardDescription>
           <CardAction>
             <Button asChild variant="outline" size="sm">
-              <a href={href("devices")}>Manage devices</a>
+              <a href={href("devices")}>{t("overview.manage")}</a>
             </Button>
           </CardAction>
         </CardHeader>
@@ -160,12 +162,12 @@ export function OverviewPage() {
               d.meters.length === 0 ? (
                 <Empty className="border">
                   <EmptyHeader>
-                    <EmptyTitle>No meters configured</EmptyTitle>
-                    <EmptyDescription>Add a bus and a device, or scan a bus to discover encoders.</EmptyDescription>
+                    <EmptyTitle>{t("overview.noMeters")}</EmptyTitle>
+                    <EmptyDescription>{t("overview.noMetersDescription")}</EmptyDescription>
                   </EmptyHeader>
                   <EmptyContent>
                     <Button asChild>
-                      <a href={href("devices")}>Go to devices</a>
+                      <a href={href("devices")}>{t("overview.goDevices")}</a>
                     </Button>
                   </EmptyContent>
                 </Empty>
@@ -181,20 +183,21 @@ export function OverviewPage() {
 }
 
 function MeterTable({ meters }: { meters: Meter[] }) {
+  const { t } = useTranslation()
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Meter</TableHead>
-          <TableHead>Status</TableHead>
+          <TableHead>{t("overview.meter")}</TableHead>
+          <TableHead>{t("overview.status")}</TableHead>
           <TableHead className="text-right">
             <span className="inline-flex items-center gap-1">
-              Reading <Hint>Net accumulated volume (forward minus reverse, plus the configured offset).</Hint>
+              {t("overview.reading")} <Hint>{t("overview.readingHint")}</Hint>
             </span>
           </TableHead>
-          <TableHead className="text-right">Forward</TableHead>
-          <TableHead className="text-right">Reverse</TableHead>
-          <TableHead>Updated</TableHead>
+          <TableHead className="text-right">{t("overview.forward")}</TableHead>
+          <TableHead className="text-right">{t("overview.reverse")}</TableHead>
+          <TableHead>{t("overview.updated")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -217,7 +220,7 @@ function MeterTable({ meters }: { meters: Meter[] }) {
                   <OnlineBadge online={m.online} enabled={m.enabled} lastError={m.last_error} lastOk={r?.time} />
                   {r?.warnings?.length ? (
                     <WithTip tip={r.warnings.join(" · ")}>
-                      <TriangleAlertIcon className="size-4" aria-label="Warnings" />
+                      <TriangleAlertIcon className="size-4" aria-label={t("overview.warnings")} />
                     </WithTip>
                   ) : null}
                 </div>

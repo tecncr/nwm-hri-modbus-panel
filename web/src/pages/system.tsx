@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { PlayIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,7 +14,7 @@ import { QueryState } from "@/components/query-state"
 import { Stat } from "@/components/stat"
 import { useAction } from "@/hooks/use-action"
 import { api } from "@/lib/api"
-import { fmtDateTime, fmtDuration, fmtGoDuration, fmtNumber, fmtRelative } from "@/lib/format"
+import { fmtDateTime, fmtDuration, fmtGoDuration, fmtNumber, fmtRelative, fmtSchedule } from "@/lib/format"
 import type { RecorderRun, SystemInfo } from "@/lib/types"
 
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
@@ -30,24 +31,31 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
 }
 
 export function SystemPage() {
+  const { t } = useTranslation()
   const info = useQuery({ queryKey: ["system"], queryFn: () => api.get<SystemInfo>("system"), refetchInterval: 15_000 })
   const config = useQuery({ queryKey: ["system-config"], queryFn: () => api.get<unknown>("system/config") })
   const record = useAction(() => api.post<RecorderRun>("recorder/run"), {
-    success: (r) => `Recorded ${r.recorded} meter(s)${r.failed ? `, ${r.failed} failed` : ""}`,
+    success: (r) => {
+      const message = t("system.recorded", { count: r.recorded })
+      return r.failed ? t("system.recordedFailed", { message, failed: r.failed }) : message
+    },
     invalidate: [["system"], ["meters"], ["measurements"]],
   })
   const s = info.data
+  // Placeholders the server reports for development builds.
+  const version = (v: string) => (v === "development build" ? t("system.devBuild") : v)
+  const notAvailable = (v: string) => (!v || v === "n/a" ? t("system.notAvailable") : v)
   const run = s?.recorder.last_run
 
   return (
     <>
       <PageHeader
-        title="System"
-        description="Server, recorder and storage status."
+        title={t("system.title")}
+        description={t("system.description")}
         actions={
-          <WithTip tip="Read every recordable meter now and store the measurements, outside the schedule.">
+          <WithTip tip={t("system.recordTip")}>
             <Button onClick={() => record.mutate(undefined)} disabled={record.isPending || !s?.storage.enabled}>
-              {record.isPending ? <Spinner /> : <PlayIcon />} Record now
+              {record.isPending ? <Spinner /> : <PlayIcon />} {t("system.record")}
             </Button>
           </WithTip>
         }
@@ -56,78 +64,78 @@ export function SystemPage() {
         {(s) => (
           <>
             <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <Stat label="Version" value={s.version} sub={s.build.commit !== "n/a" ? s.build.commit.slice(0, 12) : `${s.build.os}/${s.build.arch}`} hint="Build of the running server." />
-              <Stat label="Uptime" value={fmtDuration(s.uptime_seconds)} sub={`since ${fmtDateTime(s.started_at)}`} hint="Time since the server started." />
-              <Stat label="Inventory" value={`${s.buses} bus${s.buses === 1 ? "" : "es"} · ${s.devices} meter${s.devices === 1 ? "" : "s"}`} sub={s.persistent ? "Saved to config file" : "In memory only"} hint="Configured buses and encoders. Changes made in the dashboard are written back to the config file when one is in use." />
-              <Stat label="Database" value={fmtNumber(s.storage.stats.rows)} sub={`${s.storage.driver}${s.storage.stats.estimated ? " · estimated" : ""}`} hint="Rows in the measurement database and the storage driver in use." />
+              <Stat label={t("system.version")} value={version(s.version)} sub={s.build.commit !== "n/a" ? s.build.commit.slice(0, 12) : `${s.build.os}/${s.build.arch}`} hint={t("system.versionHint")} />
+              <Stat label={t("system.uptime")} value={fmtDuration(s.uptime_seconds)} sub={t("system.since", { time: fmtDateTime(s.started_at) })} hint={t("system.uptimeHint")} />
+              <Stat label={t("system.inventory")} value={`${t("system.buses", { count: s.buses })} · ${t("system.meters", { count: s.devices })}`} sub={s.persistent ? t("system.savedToFile") : t("system.inMemory")} hint={t("system.inventoryHint")} />
+              <Stat label={t("system.database")} value={fmtNumber(s.storage.stats.rows)} sub={`${s.storage.driver}${s.storage.stats.estimated ? t("system.estimated") : ""}`} hint={t("system.databaseHint")} />
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Recorder</CardTitle>
+                  <CardTitle>{t("system.recorder")}</CardTitle>
                   <CardDescription>
-                    {s.recorder.enabled ? s.recorder.schedule : "Disabled"}
-                    {s.recorder.next_run ? ` · next ${fmtRelative(s.recorder.next_run)}` : ""}
+                    {s.recorder.enabled ? fmtSchedule(s.recorder.schedule) : t("system.recorderDisabled")}
+                    {s.recorder.next_run ? t("system.next", { when: fmtRelative(s.recorder.next_run) }) : ""}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {run ? (
                     <>
                       <p className="mb-3 text-sm">
-                        Last pass {fmtDateTime(run.tick)} took {run.duration_ms} ms: {run.recorded} stored, {run.failed} failed.
-                        {run.store_error && <span className="block font-semibold">Database error: {run.store_error}</span>}
+                        {t("system.lastPass", { time: fmtDateTime(run.tick), duration: fmtNumber(run.duration_ms), recorded: run.recorded, failed: run.failed })}
+                        {run.store_error && <span className="block font-semibold">{t("system.databaseError", { error: run.store_error })}</span>}
                       </p>
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Meter</TableHead>
-                            <TableHead>Result</TableHead>
+                            <TableHead>{t("system.meter")}</TableHead>
+                            <TableHead>{t("system.result")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {(run.devices ?? []).map((d) => (
                             <TableRow key={d.device_id}>
                               <TableCell>{d.device_id}</TableCell>
-                              <TableCell>{d.ok ? <Badge>OK</Badge> : <span className="text-xs">{d.error}</span>}</TableCell>
+                              <TableCell>{d.ok ? <Badge>{t("common.ok")}</Badge> : <span className="text-xs">{d.error}</span>}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
                     </>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No recording pass has run yet.</p>
+                    <p className="text-sm text-muted-foreground">{t("system.noPass")}</p>
                   )}
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle>Server</CardTitle>
+                  <CardTitle>{t("system.server")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableBody>
-                      <Row label="Config file" hint="The YAML file the server loaded; inventory changes are saved there.">
-                        {s.config_file || "none"}
+                      <Row label={t("system.configFile")} hint={t("system.configFileHint")}>
+                        {s.config_file || t("common.none")}
                       </Row>
-                      <Row label="Storage" hint="Measurement database driver and the time span of stored data.">
+                      <Row label={t("system.storage")} hint={t("system.storageHint")}>
                         {s.storage.driver}
                         {s.storage.stats.oldest ? ` · ${fmtDateTime(s.storage.stats.oldest)} → ${fmtDateTime(s.storage.stats.newest)}` : ""}
                         {s.storage.error ? ` · ${s.storage.error}` : ""}
                       </Row>
-                      <Row label="Modbus timeout / retries" hint="Default response timeout and retries; buses can override them.">
+                      <Row label={t("system.modbus")} hint={t("system.modbusHint")}>
                         {fmtGoDuration(s.modbus.timeout)} / {s.modbus.retries}
                       </Row>
-                      <Row label="Live cache" hint="Live readings younger than this are served from memory instead of the bus.">
+                      <Row label={t("system.liveCache")} hint={t("system.liveCacheHint")}>
                         {fmtGoDuration(s.modbus.live_cache_ttl)}
                       </Row>
-                      <Row label="Raw writes / broadcast" hint="Whether the API allows raw register writes and broadcast writes.">
-                        {s.modbus.allow_raw_writes ? "allowed" : "disabled"} / {s.modbus.allow_broadcast ? "allowed" : "disabled"}
+                      <Row label={t("system.writes")} hint={t("system.writesHint")}>
+                        {s.modbus.allow_raw_writes ? t("common.allowed") : t("common.disabled")} / {s.modbus.allow_broadcast ? t("common.allowed") : t("common.disabled")}
                       </Row>
-                      <Row label="Query limits" hint="Bounds applied to database queries to protect the server.">
-                        range ≤ {fmtGoDuration(s.query.max_range)}, page ≤ {s.query.max_page_size}, CSV ≤ {fmtNumber(s.query.max_export_rows)} rows, ≤ {s.query.max_buckets} buckets
+                      <Row label={t("system.limits")} hint={t("system.limitsHint")}>
+                        {t("system.limitsValue", { range: fmtGoDuration(s.query.max_range), page: fmtNumber(s.query.max_page_size), rows: fmtNumber(s.query.max_export_rows), buckets: fmtNumber(s.query.max_buckets) })}
                       </Row>
-                      <Row label="Build" hint="Detailed build information.">
-                        {s.build.version} · {s.build.commit} · {s.build.date || "n/a"} · {s.build.go}
+                      <Row label={t("system.build")} hint={t("system.buildHint")}>
+                        {version(s.build.version)} · {notAvailable(s.build.commit)} · {notAvailable(s.build.date)} · {s.build.go}
                       </Row>
                     </TableBody>
                   </Table>
@@ -136,7 +144,7 @@ export function SystemPage() {
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-1.5">
-                    Effective configuration <Hint>The merged result of defaults, config file, environment variables and flags. Secrets are redacted. Edit the config file to change it; buses and devices can also be edited on the Devices page.</Hint>
+                    {t("system.effective")} <Hint>{t("system.effectiveHint")}</Hint>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
