@@ -79,14 +79,17 @@ func TestSimulatorRoundTrip(t *testing.T) {
 	if err := d.SetPulseEquivalents(ctx, PulseEquivalents{BaseLiters: 1, OutputLiters: 1}); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.SetBaseReadings(ctx, BaseReadings{Forward: 0x87766554, Reverse: 0x43322110}); err != nil {
+	if err := d.SetBaseReadings(ctx, BaseReadings{Forward: 183540, Reverse: 3323}); err != nil {
 		t.Fatal(err)
 	}
 	c, err := d.ReadCounters(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.Forward != 0x87766554 || c.Reverse != 0x43322110 || c.Total != 0x44444444 {
+	if err := d.SetBaseReadings(ctx, BaseReadings{Forward: MaxCounter + 1}); err == nil {
+		t.Fatal("base reading above MaxCounter should be rejected")
+	}
+	if c.Forward != 183540 || c.Reverse != 3323 || c.Total != 180217 {
 		t.Fatalf("counters %+v", c)
 	}
 	when := time.Date(2030, 1, 2, 3, 4, 5, 0, time.Local)
@@ -123,5 +126,32 @@ func TestSimulatorRoundTrip(t *testing.T) {
 	d.Slave = 42
 	if _, err := d.ReadCounters(ctx); err != modbus.ErrTimeout {
 		t.Fatalf("expected timeout on old address, got %v", err)
+	}
+}
+
+// TestCounterEncoding checks words read from an encoder around a carry: the
+// low word rolls over at 10000, not 65536.
+func TestCounterEncoding(t *testing.T) {
+	before := JoinCounter(0x000B, 0x270F) // 11 × 10000 + 9999
+	after := JoinCounter(0x000C, 0x0002)
+	if before != 119999 || after != 120002 {
+		t.Fatalf("JoinCounter: before %d, after %d", before, after)
+	}
+	for _, v := range []uint32{0, 9999, 10000, 119999, MaxCounter} {
+		hi, lo, ok := SplitCounter(v)
+		if !ok || lo >= CounterLowModulus || JoinCounter(hi, lo) != v {
+			t.Errorf("SplitCounter(%d) = %d, %d, %v", v, hi, lo, ok)
+		}
+	}
+	if _, _, ok := SplitCounter(MaxCounter + 1); ok {
+		t.Error("SplitCounter should reject values above MaxCounter")
+	}
+	// Net counter read from the same encoder: forward 0x000C0002 minus
+	// reverse 0x00000CFB reads 0x000B1A17.
+	if hi, lo := simNet(0x000C, 0x0002, 0x0000, 0x0CFB); hi != 0x000B || lo != 0x1A17 {
+		t.Fatalf("simNet = %04X %04X", hi, lo)
+	}
+	if JoinCounter(0x000B, 0x1A17) != after-3323 {
+		t.Fatal("net counter should equal forward minus reverse")
 	}
 }

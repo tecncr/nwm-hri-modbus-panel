@@ -36,15 +36,16 @@ connection, which is reopened on the next request.
 
 ## Register map
 
-All values are 16-bit holding registers. 32-bit values span two registers,
-**high word first**.
+All values are 16-bit holding registers. Counters span two registers, high
+word first, encoded as **high × 10000 + low** (see
+[counter encoding](#counter-encoding)).
 
 | Address | Register | Access | Encoding |
 |---|---|---|---|
 | `0x0000` | Slave address | R/W | 1-247 |
-| `0x0001-0x0002` | Accumulated (net) flow | R | uint32, output units |
-| `0x0003-0x0004` | Forward flow | R | uint32, output units |
-| `0x0005-0x0006` | Reverse flow | R | uint32, output units |
+| `0x0001-0x0002` | Accumulated (net) flow | R | counter, output units |
+| `0x0003-0x0004` | Forward flow | R | counter, output units |
+| `0x0005-0x0006` | Reverse flow | R | counter, output units |
 | `0x0007` | Clock: year / month | R/W | high byte: year − 2000; low byte: month |
 | `0x0008` | Clock: day / hour | R/W | high byte: day; low byte: hour |
 | `0x0009` | Clock: minute / second | R/W | high byte: minute; low byte: second |
@@ -56,12 +57,27 @@ All values are 16-bit holding registers. 32-bit values span two registers,
 | `0x000F` | Failure | R | failure code, 0 = none |
 | `0x0010` | Base pulse equivalent | R/W | 1-10000 L/pulse |
 | `0x0011` | Output pulse equivalent | R/W | 1-1000 L/unit, ≥ base |
-| `0x0012-0x0013` | Forward base reading | R/W | uint32, output units |
-| `0x0014-0x0015` | Reverse base reading | R/W | uint32, output units |
+| `0x0012-0x0013` | Forward base reading | R/W | counter, output units |
+| `0x0014-0x0015` | Reverse base reading | R/W | counter, output units |
 | `0x0019-0x001B` | Debug numbers | R | six bytes, two per register |
 
-The accumulated flow equals forward minus reverse (32-bit arithmetic). Writing
-the base readings presets the forward and reverse counters.
+The accumulated flow equals forward minus reverse. Writing the base readings
+presets the forward and reverse counters.
+
+### Counter encoding
+
+The protocol document describes the counters as plain 32-bit big-endian
+values, but the firmware keeps the low word in `0-9999` and carries into the
+high word every 10000 units:
+
+```
+value = high_word × 10000 + low_word        (max 655 359 999)
+```
+
+For example, `0x000B 0x270F` is 119 999 and the next unit is
+`0x000C 0x0000` (120 000). The net counter follows the same rule: the firmware
+subtracts word by word, borrowing 10000. Base readings are written in the same
+encoding.
 
 Every register is reachable through the API: decoded via
 `GET /devices/{id}/snapshot`, through a typed endpoint for each writable

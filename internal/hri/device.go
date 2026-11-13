@@ -9,7 +9,7 @@ import (
 	"github.com/tecncr/nwm-hri-modbus-panel/internal/modbus"
 )
 
-// Counters are the raw 32-bit flow counters, in output pulse units.
+// Counters are the decoded flow counters, in output pulse units (see JoinCounter).
 type Counters struct {
 	Total   uint32 `json:"total"`
 	Forward uint32 `json:"forward"`
@@ -125,9 +125,9 @@ func (d Device) ReadSnapshot(ctx context.Context) (*Snapshot, error) {
 	s := &Snapshot{
 		SlaveAddress: r[RegSlaveAddress],
 		Counters: Counters{
-			Total:   U32(r[RegTotalFlow], r[RegTotalFlow+1]),
-			Forward: U32(r[RegForwardFlow], r[RegForwardFlow+1]),
-			Reverse: U32(r[RegReverseFlow], r[RegReverseFlow+1]),
+			Total:   JoinCounter(r[RegTotalFlow], r[RegTotalFlow+1]),
+			Forward: JoinCounter(r[RegForwardFlow], r[RegForwardFlow+1]),
+			Reverse: JoinCounter(r[RegReverseFlow], r[RegReverseFlow+1]),
 		},
 		Clock:                DecodeClock(r[RegClockYearMonth], r[RegClockDayHour], r[RegClockMinuteSecond]),
 		DeviceType:           r[RegDeviceType],
@@ -137,8 +137,8 @@ func (d Device) ReadSnapshot(ctx context.Context) (*Snapshot, error) {
 		Failure:              r[RegFailure],
 		BasePulseLiters:      r[RegBasePulseEquivalent],
 		OutputPulseLiters:    r[RegOutputPulseEquivalent],
-		ForwardBaseReading:   U32(r[RegForwardBaseReading], r[RegForwardBaseReading+1]),
-		ReverseBaseReading:   U32(r[RegReverseBaseReading], r[RegReverseBaseReading+1]),
+		ForwardBaseReading:   JoinCounter(r[RegForwardBaseReading], r[RegForwardBaseReading+1]),
+		ReverseBaseReading:   JoinCounter(r[RegReverseBaseReading], r[RegReverseBaseReading+1]),
 		ReadAt:               time.Now(),
 	}
 	for i, v := range r {
@@ -183,9 +183,9 @@ func (d Device) ReadStatus(ctx context.Context) (*Status, error) {
 	at := func(addr uint16) uint16 { return r[addr-RegTotalFlow] }
 	return &Status{
 		Counters: Counters{
-			Total:   U32(at(RegTotalFlow), at(RegTotalFlow+1)),
-			Forward: U32(at(RegForwardFlow), at(RegForwardFlow+1)),
-			Reverse: U32(at(RegReverseFlow), at(RegReverseFlow+1)),
+			Total:   JoinCounter(at(RegTotalFlow), at(RegTotalFlow+1)),
+			Forward: JoinCounter(at(RegForwardFlow), at(RegForwardFlow+1)),
+			Reverse: JoinCounter(at(RegReverseFlow), at(RegReverseFlow+1)),
 		},
 		Clock:             DecodeClock(at(RegClockYearMonth), at(RegClockDayHour), at(RegClockMinuteSecond)),
 		BatteryStatus:     at(RegBatteryStatus),
@@ -201,7 +201,7 @@ func (d Device) ReadCounters(ctx context.Context) (Counters, error) {
 	if err != nil {
 		return Counters{}, err
 	}
-	return Counters{Total: U32(r[0], r[1]), Forward: U32(r[2], r[3]), Reverse: U32(r[4], r[5])}, nil
+	return Counters{Total: JoinCounter(r[0], r[1]), Forward: JoinCounter(r[2], r[3]), Reverse: JoinCounter(r[4], r[5])}, nil
 }
 
 // ReadSlaveAddress reads the configured slave address.
@@ -337,13 +337,16 @@ func (d Device) ReadBaseReadings(ctx context.Context) (BaseReadings, error) {
 	if err != nil {
 		return BaseReadings{}, err
 	}
-	return BaseReadings{Forward: U32(r[0], r[1]), Reverse: U32(r[2], r[3])}, nil
+	return BaseReadings{Forward: JoinCounter(r[0], r[1]), Reverse: JoinCounter(r[2], r[3])}, nil
 }
 
 // SetBaseReadings presets the forward and reverse counters in one request.
 func (d Device) SetBaseReadings(ctx context.Context, b BaseReadings) error {
-	fh, fl := SplitU32(b.Forward)
-	rh, rl := SplitU32(b.Reverse)
+	fh, fl, okF := SplitCounter(b.Forward)
+	rh, rl, okR := SplitCounter(b.Reverse)
+	if !okF || !okR {
+		return fmt.Errorf("%w: base readings must be between 0 and %d", modbus.ErrInvalidRequest, MaxCounter)
+	}
 	return d.WriteRegisters(ctx, RegForwardBaseReading, []uint16{fh, fl, rh, rl})
 }
 

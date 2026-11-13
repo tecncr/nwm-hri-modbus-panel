@@ -79,11 +79,30 @@ func DecodeFirmware(year, monthDay uint16) Firmware {
 	return f
 }
 
-// U32 joins a high and a low word.
-func U32(hi, lo uint16) uint32 { return uint32(hi)<<16 | uint32(lo) }
+// CounterLowModulus is the rollover of the low word of the encoder's two-word
+// counters. Contrary to the protocol document, which describes plain 32-bit
+// big-endian values, the firmware keeps the low word in 0-9999 and carries
+// into the high word every 10000 units: value = high × 10000 + low. Joining
+// the words as a binary uint32 makes the counter jump by 55536 (65536 − 10000)
+// at every carry.
+const CounterLowModulus = 10000
 
-// SplitU32 splits v into high and low words.
-func SplitU32(v uint32) (hi, lo uint16) { return uint16(v >> 16), uint16(v) }
+// MaxCounter is the largest value a two-word counter can hold.
+const MaxCounter = 0xFFFF*CounterLowModulus + CounterLowModulus - 1
+
+// JoinCounter decodes a two-word counter, high word first.
+func JoinCounter(hi, lo uint16) uint32 {
+	return uint32(hi)*CounterLowModulus + uint32(lo)
+}
+
+// SplitCounter encodes v as a two-word counter, high word first. ok is false
+// when v exceeds MaxCounter.
+func SplitCounter(v uint32) (hi, lo uint16, ok bool) {
+	if v > MaxCounter {
+		return 0, 0, false
+	}
+	return uint16(v / CounterLowModulus), uint16(v % CounterLowModulus), true
+}
 
 // ValidatePulseEquivalents checks base/output pulse equivalents against the
 // encoder's documented limits.

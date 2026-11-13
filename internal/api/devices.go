@@ -519,8 +519,8 @@ func (s *Server) setBaseReadings(c fiber.Ctx) error {
 		}
 		toRaw := func(name string, liters float64, offset float64) (int64, error) {
 			v := math.Round((liters - offset) / lpu)
-			if math.IsNaN(v) || v < 0 || v > math.MaxUint32 {
-				return 0, badRequest("%s converts to %v counter units, outside 0-%d", name, v, uint32(math.MaxUint32))
+			if math.IsNaN(v) || v < 0 || v > hri.MaxCounter {
+				return 0, badRequest("%s converts to %v counter units, outside 0-%d", name, v, hri.MaxCounter)
 			}
 			return int64(v), nil
 		}
@@ -540,8 +540,8 @@ func (s *Server) setBaseReadings(c fiber.Ctx) error {
 			req.Reverse = &v
 		}
 		for name, v := range map[string]*int64{"forward": req.Forward, "reverse": req.Reverse} {
-			if v != nil && (*v < 0 || *v > math.MaxUint32) {
-				return badRequest("%s must be between 0 and %d", name, uint32(math.MaxUint32))
+			if v != nil && (*v < 0 || *v > hri.MaxCounter) {
+				return badRequest("%s must be between 0 and %d", name, hri.MaxCounter)
 			}
 		}
 		if req.Forward != nil {

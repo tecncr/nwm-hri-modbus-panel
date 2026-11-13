@@ -5,9 +5,9 @@ package hri
 // Register addresses.
 const (
 	RegSlaveAddress          uint16 = 0x0000
-	RegTotalFlow             uint16 = 0x0001 // 2 words, high word first
-	RegForwardFlow           uint16 = 0x0003 // 2 words, high word first
-	RegReverseFlow           uint16 = 0x0005 // 2 words, high word first
+	RegTotalFlow             uint16 = 0x0001 // 2 words, high word first: high*10000 + low
+	RegForwardFlow           uint16 = 0x0003 // 2 words, high word first: high*10000 + low
+	RegReverseFlow           uint16 = 0x0005 // 2 words, high word first: high*10000 + low
 	RegClockYearMonth        uint16 = 0x0007
 	RegClockDayHour          uint16 = 0x0008
 	RegClockMinuteSecond     uint16 = 0x0009
@@ -19,8 +19,8 @@ const (
 	RegFailure               uint16 = 0x000F
 	RegBasePulseEquivalent   uint16 = 0x0010
 	RegOutputPulseEquivalent uint16 = 0x0011
-	RegForwardBaseReading    uint16 = 0x0012 // 2 words, high word first
-	RegReverseBaseReading    uint16 = 0x0014 // 2 words, high word first
+	RegForwardBaseReading    uint16 = 0x0012 // 2 words, high word first: high*10000 + low
+	RegReverseBaseReading    uint16 = 0x0014 // 2 words, high word first: high*10000 + low
 	RegDebugNumbers          uint16 = 0x0019 // 3 words, 6 bytes
 )
 
@@ -63,11 +63,11 @@ var Registers = []Register{
 	{"slave_address", RegSlaveAddress, 1, ReadWrite, "Slave address",
 		"Modbus address of the encoder (1-247). Address 0 is the broadcast address."},
 	{"total_flow", RegTotalFlow, 2, ReadOnly, "Accumulated flow",
-		"Net accumulated flow counter (forward minus reverse), in output pulse units. 32-bit, high word first."},
+		"Net accumulated flow counter (forward minus reverse), in output pulse units. Two words, high word first: high × 10000 + low."},
 	{"forward_flow", RegForwardFlow, 2, ReadOnly, "Forward flow",
-		"Forward (positive direction) flow counter, in output pulse units. 32-bit, high word first."},
+		"Forward (positive direction) flow counter, in output pulse units. Two words, high word first: high × 10000 + low."},
 	{"reverse_flow", RegReverseFlow, 2, ReadOnly, "Reverse flow",
-		"Reverse (backflow) counter, in output pulse units. 32-bit, high word first."},
+		"Reverse (backflow) counter, in output pulse units. Two words, high word first: high × 10000 + low."},
 	{"clock_year_month", RegClockYearMonth, 1, ReadWrite, "Clock: year / month",
 		"Real-time clock. High byte: year since 2000; low byte: month (1-12)."},
 	{"clock_day_hour", RegClockDayHour, 1, ReadWrite, "Clock: day / hour",
@@ -91,9 +91,9 @@ var Registers = []Register{
 	{"output_pulse_equivalent", RegOutputPulseEquivalent, 1, ReadWrite, "Output pulse equivalent",
 		"Resolution of the communicated counters in liters per unit (1-1000 L/unit). Must not be lower than the base pulse equivalent."},
 	{"forward_base_reading", RegForwardBaseReading, 2, ReadWrite, "Forward base reading",
-		"Initial value of the forward counter, in output pulse units. Writing it presets the forward counter. 32-bit, high word first."},
+		"Initial value of the forward counter, in output pulse units. Writing it presets the forward counter. Two words, high word first: high × 10000 + low."},
 	{"reverse_base_reading", RegReverseBaseReading, 2, ReadWrite, "Reverse base reading",
-		"Initial value of the reverse counter, in output pulse units. Writing it presets the reverse counter. 32-bit, high word first."},
+		"Initial value of the reverse counter, in output pulse units. Writing it presets the reverse counter. Two words, high word first: high × 10000 + low."},
 	{"debug_numbers", RegDebugNumbers, 3, ReadOnly, "Debug numbers",
 		"Six diagnostic bytes (debugNum1-debugNum6), two per register."},
 }

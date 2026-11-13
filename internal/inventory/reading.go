@@ -62,8 +62,8 @@ func Convert(dev config.DeviceConfig, loc *time.Location, st *hri.Status, at tim
 		r.LitersPerUnit, r.LitersPerUnitSource = 1, SourceDefault
 		r.Warnings = append(r.Warnings, "encoder reports an output pulse equivalent of 0; assuming 1 L/unit")
 	}
-	// The net counter is forward minus reverse in 32-bit arithmetic; recover
-	// the sign when it wrapped below zero.
+	// The encoder computes the net counter as forward minus reverse, and a
+	// negative result wraps the high word; recover the sign in that case.
 	net := int64(st.Total)
 	if st.Total > st.Forward {
 		net = int64(st.Forward) - int64(st.Reverse)

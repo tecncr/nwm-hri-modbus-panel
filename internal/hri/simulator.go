@@ -76,9 +76,9 @@ func (d *simDevice) words(now time.Time) []uint16 {
 	rev := d.revBase + uint32(d.reverseLiters/out)
 	clock, _ := EncodeClock(now.Add(d.clockOffset))
 	r := make([]uint16, mainBlockLen)
-	r[RegTotalFlow], r[RegTotalFlow+1] = SplitU32(fwd - rev)
-	r[RegForwardFlow], r[RegForwardFlow+1] = SplitU32(fwd)
-	r[RegReverseFlow], r[RegReverseFlow+1] = SplitU32(rev)
+	r[RegForwardFlow], r[RegForwardFlow+1] = simCounter(fwd)
+	r[RegReverseFlow], r[RegReverseFlow+1] = simCounter(rev)
+	r[RegTotalFlow], r[RegTotalFlow+1] = simNet(r[RegForwardFlow], r[RegForwardFlow+1], r[RegReverseFlow], r[RegReverseFlow+1])
 	copy(r[RegClockYearMonth:], clock[:])
 	r[RegDeviceType] = d.deviceType
 	r[RegFirmwareYear] = 0x1412
@@ -86,9 +86,28 @@ func (d *simDevice) words(now time.Time) []uint16 {
 	r[RegReverseFlowThreshold] = d.threshold
 	r[RegBasePulseEquivalent] = d.base
 	r[RegOutputPulseEquivalent] = d.output
-	r[RegForwardBaseReading], r[RegForwardBaseReading+1] = SplitU32(fwd)
-	r[RegReverseBaseReading], r[RegReverseBaseReading+1] = SplitU32(rev)
+	r[RegForwardBaseReading], r[RegForwardBaseReading+1] = simCounter(fwd)
+	r[RegReverseBaseReading], r[RegReverseBaseReading+1] = simCounter(rev)
 	return r
+}
+
+// simCounter encodes v like the firmware, rolling over past MaxCounter.
+func simCounter(v uint32) (hi, lo uint16) {
+	hi, lo, _ = SplitCounter(v % (MaxCounter + 1))
+	return hi, lo
+}
+
+// simNet reproduces the firmware's net counter: forward minus reverse word by
+// word, borrowing CounterLowModulus from the high word. A negative net wraps
+// the high word.
+func simNet(fh, fl, rh, rl uint16) (hi, lo uint16) {
+	l := int(fl) - int(rl)
+	hi = fh - rh
+	if l < 0 {
+		l += CounterLowModulus
+		hi--
+	}
+	return hi, uint16(l)
 }
 
 // handle processes one request frame and returns the response frame, or nil
@@ -209,11 +228,11 @@ func (s *Simulator) write(slave uint8, d *simDevice, addr uint16, v []uint16, no
 		d.threshold = at(RegReverseFlowThreshold)
 	}
 	if covers(RegForwardBaseReading) && covers(RegForwardBaseReading+1) {
-		d.fwdBase = U32(at(RegForwardBaseReading), at(RegForwardBaseReading+1))
+		d.fwdBase = JoinCounter(at(RegForwardBaseReading), at(RegForwardBaseReading+1))
 		d.forwardLiters = 0
 	}
 	if covers(RegReverseBaseReading) && covers(RegReverseBaseReading+1) {
-		d.revBase = U32(at(RegReverseBaseReading), at(RegReverseBaseReading+1))
+		d.revBase = JoinCounter(at(RegReverseBaseReading), at(RegReverseBaseReading+1))
 		d.reverseLiters = 0
 	}
 	if covers(RegSlaveAddress) {
