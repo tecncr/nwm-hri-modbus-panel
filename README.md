@@ -42,6 +42,8 @@ nwm-panel [serve]        run the server (default command)
 nwm-panel config example print an annotated config file
 nwm-panel config validate
 nwm-panel config show    effective configuration, secrets redacted
+nwm-panel export regenerate --from <t> --to <t>
+                         rewrite periodic CSV files from the database
 nwm-panel version        build details   (also: --version)
 ```
 

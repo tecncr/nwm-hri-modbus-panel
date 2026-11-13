@@ -150,6 +150,68 @@ func (e *Exporter) RunOnce(ctx context.Context, tick time.Time) (*Result, error)
 	return res, err
 }
 
+// MaxRegenerateWindows bounds the number of export windows one regeneration
+// may rewrite.
+const MaxRegenerateWindows = 5000
+
+// Regeneration summarises a Regenerate pass.
+type Regeneration struct {
+	From       time.Time  `json:"from"`
+	To         time.Time  `json:"to"`
+	Windows    int        `json:"windows"`
+	Files      []FileInfo `json:"files"`
+	Rows       int        `json:"rows"`
+	Errors     []string   `json:"errors"`
+	DurationMS int64      `json:"duration_ms"`
+}
+
+// Ticks returns the scheduled export ticks whose window [tick-window, tick)
+// overlaps [from, to), excluding ticks after now.
+func (e *Exporter) Ticks(from, to, now time.Time) ([]time.Time, error) {
+	if !from.Before(to) {
+		return nil, fmt.Errorf("from (%s) must be before to (%s)", from.Format(time.RFC3339), to.Format(time.RFC3339))
+	}
+	w := e.cfg.Window.D()
+	var ticks []time.Time
+	for t := e.schedule.Next(from); t.Add(-w).Before(to) && !t.After(now); t = e.schedule.Next(t) {
+		if len(ticks) == MaxRegenerateWindows {
+			return nil, fmt.Errorf("range covers more than %d export windows; split it", MaxRegenerateWindows)
+		}
+		ticks = append(ticks, t)
+	}
+	return ticks, nil
+}
+
+// Regenerate rewrites the periodic export files of every scheduled window
+// overlapping [from, to) from the current database contents, e.g. after
+// stored measurements were corrected. Files keep their scheduled names, so
+// existing ones are replaced.
+func (e *Exporter) Regenerate(ctx context.Context, from, to time.Time) (*Regeneration, error) {
+	ticks, err := e.Ticks(from, to, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	e.runMu.Lock()
+	defer e.runMu.Unlock()
+	started := time.Now()
+	out := &Regeneration{From: from, To: to, Files: []FileInfo{}, Errors: []string{}}
+	for _, tick := range ticks {
+		if err := ctx.Err(); err != nil {
+			return out, err
+		}
+		res := &Result{Tick: tick, From: tick.Add(-e.cfg.Window.D()), To: tick, Files: []FileInfo{}}
+		if err := e.run(ctx, res); err != nil {
+			out.Errors = append(out.Errors, err.Error())
+		}
+		out.Windows++
+		out.Rows += res.Rows
+		out.Files = append(out.Files, res.Files...)
+	}
+	out.DurationMS = time.Since(started).Milliseconds()
+	e.log.Info("CSV exports regenerated", "from", from, "to", to, "windows", out.Windows, "files", len(out.Files), "errors", len(out.Errors))
+	return out, nil
+}
+
 func (e *Exporter) run(ctx context.Context, res *Result) error {
 	if err := os.MkdirAll(e.cfg.Directory, 0o750); err != nil {
 		return err

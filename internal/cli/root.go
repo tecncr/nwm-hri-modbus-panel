@@ -49,7 +49,7 @@ Running without a subcommand is equivalent to "` + appName + ` serve".`,
 	root.PersistentFlags().StringVarP(&opts.configFile, "config", "c", "", "config file (default: first of "+strings.Join(config.SearchPaths(), ", ")+")")
 
 	serve := newServeCmd(opts)
-	root.AddCommand(serve, newConfigCmd(opts), newVersionCmd())
+	root.AddCommand(serve, newConfigCmd(opts), newExportCmd(opts), newVersionCmd())
 	// Run serve when no subcommand is given, accepting its flags.
 	root.Flags().AddFlagSet(serve.Flags())
 	root.RunE = serve.RunE

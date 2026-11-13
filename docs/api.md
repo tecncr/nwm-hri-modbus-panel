@@ -471,6 +471,19 @@ Exporter status and the CSV files in the export directory, newest first:
 Generates the export now for the window ending at `to` (body
 `{"to": "<time>"}`, default now; same formats as [time parameters](#time-parameters)).
 
+### `POST /exports/regenerate`
+
+Rewrites the periodic files of every scheduled window that overlaps
+`[from, to)` and has already ended, from the current database contents (body
+`{"from": "<time>", "to": "<time>"}`, both required; same formats as
+[time parameters](#time-parameters)). Existing files are replaced. At most
+5000 windows per request.
+
+```json
+{ "from": "…", "to": "…", "windows": 7, "rows": 10080, "errors": [], "duration_ms": 180,
+  "files": [ { "name": "measurements_2026-10-27.csv", "size": 201377, "modified": "…" } ] }
+```
+
 ### `GET /exports/files/{name}` · `DELETE /exports/files/{name}`
 
 Download or delete one file. Only plain `.csv` names inside the export

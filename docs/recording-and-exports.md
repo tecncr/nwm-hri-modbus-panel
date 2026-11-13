@@ -115,6 +115,23 @@ Common setups:
 Files are written to a temporary name and renamed into place, so consumers
 never see partial files. Each file is capped at `query.max_export_rows`.
 
+### Regenerating files
+
+Periodic files are a snapshot of the database when they were written. If
+stored measurements change afterwards (corrected or backfilled), regenerate
+the affected files from the database:
+
+```sh
+nwm-panel export regenerate --from 2026-10-27 --to 2026-11-14
+```
+
+or `POST /api/v1/exports/regenerate` with `{"from": "…", "to": "…"}`. Every
+scheduled window that overlaps `[from, to)` and has already ended is
+rewritten under its usual file name, replacing the existing file. Dates
+without a zone are read in the export time zone. The command reads only the
+database, so it can run next to a running server. Regenerated files get a
+new modification time, so `keep` counts their age from the regeneration.
+
 Files can be listed, downloaded, deleted and generated on demand through the
 [API](api.md#exports) and the dashboard's **Exports** page. Ad-hoc CSV
 downloads for any range are available via `GET /api/v1/measurements/csv` and

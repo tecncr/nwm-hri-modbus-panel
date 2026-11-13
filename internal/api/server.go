@@ -180,6 +180,7 @@ func (s *Server) routes(r fiber.Router) {
 
 	r.Get("/exports", s.listExports)
 	r.Post("/exports/run", s.runExport)
+	r.Post("/exports/regenerate", s.regenerateExports)
 	r.Get("/exports/files/:name", s.downloadExport)
 	r.Delete("/exports/files/:name", s.deleteExport)
 }

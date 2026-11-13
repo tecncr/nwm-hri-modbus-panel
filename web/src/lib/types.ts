@@ -308,6 +308,16 @@ export interface ExportResult {
   error?: string
 }
 
+export interface ExportRegeneration {
+  from: string
+  to: string
+  windows: number
+  files: ExportFile[]
+  rows: number
+  errors: string[]
+  duration_ms: number
+}
+
 export interface ExportStatus {
   enabled: boolean
   schedule: string
